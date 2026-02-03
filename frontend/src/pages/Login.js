@@ -22,7 +22,13 @@ function Login() {
       const data = await res.json();
 
       if (data.token) {
+        // 🔥 VERY IMPORTANT
+        localStorage.clear();
+
         localStorage.setItem("token", data.token);
+        localStorage.setItem("role", data.role);
+        localStorage.setItem("userId", data.id);
+
         window.location.href = "/";
       } else {
         setError(data.message || "Login failed");

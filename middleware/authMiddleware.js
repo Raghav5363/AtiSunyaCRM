@@ -1,5 +1,8 @@
 const jwt = require("jsonwebtoken");
 
+/* =========================
+   PROTECT MIDDLEWARE
+========================= */
 exports.protect = (req, res, next) => {
   let token;
 
@@ -16,18 +19,29 @@ exports.protect = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // 🔥 DEBUG LINE (IMPORTANT)
+    console.log("TOKEN DATA =>", decoded);
+
     req.user = decoded;
+
     next();
   } catch (err) {
     return res.status(401).json({ message: "Invalid token" });
   }
 };
 
+/* =========================
+   ROLE CHECK
+========================= */
 exports.allowRoles = (...roles) => {
   return (req, res, next) => {
+    console.log("USER ROLE =>", req.user.role); // 🔥 DEBUG
+
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ message: "Access denied" });
     }
+
     next();
   };
 };

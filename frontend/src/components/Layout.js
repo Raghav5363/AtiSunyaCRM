@@ -1,46 +1,79 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
+const SIDEBAR_WIDTH = 240;
+
 export default function Layout({ children }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  /* ===== SCREEN DETECT ===== */
+  useEffect(() => {
+    const checkScreen = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkScreen();
+    window.addEventListener("resize", checkScreen);
+    return () => window.removeEventListener("resize", checkScreen);
+  }, []);
+
   return (
     <div
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: "#eef2f6", // soft CRM background
+        background: "#eef2f6",
       }}
     >
-      {/* SIDEBAR */}
-      <Sidebar />
+      {/* ===== SIDEBAR ===== */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        setIsOpen={setSidebarOpen}
+      />
 
-      {/* RIGHT SECTION */}
+      {/* ===== MOBILE OVERLAY ===== */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.3)",
+            zIndex: 999,
+          }}
+        />
+      )}
+
+      {/* ===== RIGHT SIDE ===== */}
       <div
         style={{
           flex: 1,
           display: "flex",
           flexDirection: "column",
+          marginLeft: isMobile ? 0 : SIDEBAR_WIDTH,
+          width: "100%",
+          transition: "0.3s",
         }}
       >
-        {/* TOPBAR */}
-        <Topbar />
+        {/* ===== TOPBAR ===== */}
+        <Topbar
+          openSidebar={() => setSidebarOpen(true)}
+          isMobile={isMobile}
+        />
 
-        {/* MAIN CONTENT */}
+        {/* ===== MAIN CONTENT ===== */}
         <div
           style={{
             flex: 1,
-            padding: "30px 35px",
+            padding: isMobile ? "15px" : "25px 30px",
             background: "#f7f9fc",
             overflowY: "auto",
           }}
         >
-          {/* CENTERED CONTENT LIKE REAL CRM */}
-          <div
-            style={{
-              maxWidth: "1400px",
-              margin: "0 auto",
-            }}
-          >
+          {/* children wrapper safe */}
+          <div style={{ width: "100%" }}>
             {children}
           </div>
         </div>

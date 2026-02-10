@@ -30,6 +30,14 @@ app.use(
 app.use(express.json());
 
 /* =========================
+   HEALTH CHECK ROUTE
+   (Deployment platforms use this)
+========================= */
+app.get("/", (req, res) => {
+  res.send("CRM API Running ✅");
+});
+
+/* =========================
    ROUTES
 ========================= */
 app.use("/api/auth", authRoutes);
@@ -51,6 +59,15 @@ mongoose
     console.log("❌ MongoDB ERROR:");
     console.log(err.message);
   });
+
+/* =========================
+   GLOBAL ERROR HANDLER
+   (Professional touch)
+========================= */
+app.use((err, req, res, next) => {
+  console.error("🔥 Server Error:", err.stack);
+  res.status(500).send("Something broke!");
+});
 
 /* =========================
    SERVER

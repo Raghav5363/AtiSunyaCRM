@@ -1,10 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  /* ===== SCREEN CHECK ===== */
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -13,7 +22,6 @@ function Login() {
 
     try {
       const res = await fetch("http://172.20.10.10:5000/api/auth/login", {
-
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -39,36 +47,47 @@ function Login() {
 
   return (
     <div style={styles.page}>
-      
-      {/* TOP BAR */}
+      {/* TOPBAR */}
       <div style={styles.topbar}>
         <img src="infratechLogo.png" alt="logo" style={styles.logo} />
       </div>
 
-      <div style={styles.container}>
-        
+      <div
+        style={{
+          ...styles.container,
+          flexDirection: isMobile ? "column" : "row",
+        }}
+      >
         {/* LEFT SIDE */}
-        <div style={styles.left}>
-          <h1 style={styles.heading}>
-            Manage your sales smarter
-          </h1>
+        {!isMobile && (
+          <div style={styles.left}>
+            <h1 style={styles.heading}>
+              Manage your sales smarter
+            </h1>
 
-          <p style={styles.text}>
-            AtiSunya CRM helps your team track leads,
-            close deals faster and grow revenue —
-            all in one simple platform.
-          </p>
+            <p style={styles.text}>
+              AtiSunya CRM helps your team track leads,
+              close deals faster and grow revenue —
+              all in one simple platform.
+            </p>
 
-          <img
-            src="https://images.unsplash.com/photo-1552664730-d307ca884978"
-            alt=""
-            style={styles.image}
-          />
-        </div>
+            <img
+              src="https://images.unsplash.com/photo-1552664730-d307ca884978"
+              alt=""
+              style={styles.image}
+            />
+          </div>
+        )}
 
         {/* RIGHT SIDE LOGIN */}
         <div style={styles.right}>
-          <div style={styles.card}>
+          <div
+            style={{
+              ...styles.card,
+              width: isMobile ? "95%" : 380,
+              padding: isMobile ? 25 : 40,
+            }}
+          >
             <h2 style={styles.title}>Sign in</h2>
             <p style={styles.subtitle}>
               Welcome back! Please login
@@ -107,7 +126,13 @@ function Login() {
                 style={styles.input}
               />
 
-              <button style={styles.button}>
+              <button
+                disabled={loading}
+                style={{
+                  ...styles.button,
+                  opacity: loading ? 0.7 : 1,
+                }}
+              >
                 {loading
                   ? "Signing in..."
                   : "Sign In"}
@@ -119,7 +144,6 @@ function Login() {
             </p>
           </div>
         </div>
-
       </div>
     </div>
   );
@@ -129,25 +153,25 @@ const styles = {
   page: {
     height: "100vh",
     fontFamily: "Inter, Segoe UI, sans-serif",
-    background: "#f8fafc",
+    background: "#f1f5f9",
   },
 
   topbar: {
-    height: 70,
+    height: 65,
     display: "flex",
     alignItems: "center",
-    padding: "0 40px",
+    padding: "0 30px",
     background: "#ffffff",
     borderBottom: "1px solid #e5e7eb",
   },
 
   logo: {
-    height: 50,
+    height: 45,
   },
 
   container: {
     display: "flex",
-    height: "calc(100vh - 70px)",
+    height: "calc(100vh - 65px)",
   },
 
   /* LEFT */
@@ -155,10 +179,13 @@ const styles = {
     flex: 1,
     padding: "80px",
     background: "#ffffff",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
   },
 
   heading: {
-    fontSize: 40,
+    fontSize: 42,
     fontWeight: 700,
     color: "#0f172a",
     marginBottom: 20,
@@ -174,7 +201,7 @@ const styles = {
 
   image: {
     width: 420,
-    borderRadius: 12,
+    borderRadius: 14,
     boxShadow:
       "0 10px 30px rgba(0,0,0,0.08)",
   },
@@ -188,10 +215,8 @@ const styles = {
   },
 
   card: {
-    width: 380,
     background: "#ffffff",
-    padding: 40,
-    borderRadius: 12,
+    borderRadius: 14,
     boxShadow:
       "0 20px 40px rgba(0,0,0,0.06)",
   },
@@ -216,8 +241,8 @@ const styles = {
 
   input: {
     width: "100%",
-    padding: 12,
-    borderRadius: 6,
+    padding: 13,
+    borderRadius: 8,
     border: "1px solid #d1d5db",
     marginBottom: 18,
     fontSize: 14,
@@ -229,7 +254,7 @@ const styles = {
     background: "#2563eb",
     color: "white",
     border: "none",
-    borderRadius: 6,
+    borderRadius: 8,
     fontWeight: 600,
     cursor: "pointer",
     fontSize: 15,
@@ -239,8 +264,8 @@ const styles = {
   error: {
     background: "#fef2f2",
     color: "#dc2626",
-    padding: 10,
-    borderRadius: 6,
+    padding: 12,
+    borderRadius: 8,
     marginBottom: 15,
   },
 

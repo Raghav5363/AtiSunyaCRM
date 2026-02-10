@@ -1,24 +1,38 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-export default function Sidebar() {
+const SIDEBAR_WIDTH = 240;
+
+export default function Sidebar({ isOpen, setIsOpen }) {
   const location = useLocation();
   const navigate = useNavigate();
   const fileInputRef = useRef();
 
-  /* ================= TOKEN SAFE ================= */
+  const [isMobile, setIsMobile] = useState(false);
+
+  /* ===== SCREEN CHECK ===== */
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  /* ===== TOKEN SAFE ===== */
   const token = localStorage.getItem("token");
 
   let user = null;
-  try {
-    user = token ? JSON.parse(atob(token.split(".")[1])) : null;
-  } catch {
-    user = null;
+  if (token) {
+    try {
+      user = JSON.parse(atob(token.split(".")[1]));
+    } catch {
+      console.error("Invalid token");
+    }
   }
 
-  /* ================= CSV UPLOAD ================= */
+  /* ===== CSV UPLOAD ===== */
   const handleCSVUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -35,20 +49,20 @@ export default function Sidebar() {
 
       toast.success("CSV Uploaded Successfully");
       e.target.value = "";
-      window.location.reload();
+      navigate("/leads");
     } catch {
       toast.error("Upload failed");
     }
   };
 
-  /* ================= LOGOUT ================= */
+  /* ===== LOGOUT ===== */
   const logout = () => {
-    localStorage.removeItem("token");
+    localStorage.clear();
     toast.success("Logged out");
     navigate("/login");
   };
 
-  /* ================= MENU ================= */
+  /* ===== MENU ===== */
   const menu = [
     { name: "Dashboard", path: "/", icon: "📊" },
     { name: "Leads", path: "/leads", icon: "👥" },
@@ -67,93 +81,118 @@ export default function Sidebar() {
       : []),
   ];
 
+  const sidebarStyle = {
+    width: SIDEBAR_WIDTH,
+    background: "#ffffff",
+    borderRight: "1px solid #e5e7eb",
+    height: "100vh",
+    padding: 20,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    position: isMobile ? "fixed" : "relative",
+    top: 0,
+    left: isMobile ? (isOpen ? 0 : -SIDEBAR_WIDTH) : 0,
+    transition: "0.3s",
+    zIndex: 1000,
+  };
+
   return (
-    <div
-      style={{
-        width: 240,
-        background: "#ffffff",
-        borderRight: "1px solid #e5e7eb",
-        minHeight: "100vh",
-        padding: 20,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-      }}
-    >
-      <div>
-        {/* LOGO */}
-        <div style={{ textAlign: "center", marginBottom: 30 }}>
-          <img src="/infratechLogo.png" alt="logo" style={{ width: 150 }} />
-        </div>
+    <>
+      {/* ===== OVERLAY ===== */}
+      {isMobile && isOpen && (
+        <div
+          onClick={() => setIsOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            zIndex: 999,
+          }}
+        />
+      )}
 
-        {/* MENU */}
-        {menu.map((item) => {
-          const active = location.pathname === item.path;
-
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 14px",
-                borderRadius: 10,
-                marginBottom: 8,
-                textDecoration: "none",
-                background: active ? "#2563eb" : "transparent",
-                color: active ? "white" : "#374151",
-                fontWeight: 500,
-                transition: "0.2s",
-              }}
-            >
-              <span>{item.icon}</span>
-              {item.name}
-            </Link>
-          );
-        })}
-
-        {/* CSV UPLOAD */}
-        {(user?.role === "admin" || user?.role === "sales_manager") && (
-          <div
-            onClick={() => fileInputRef.current.click()}
-            style={{
-              padding: "12px 14px",
-              cursor: "pointer",
-              marginTop: 10,
-              color: "#374151",
-            }}
-          >
-            ⧉ Upload CSV
-            <input
-              hidden
-              type="file"
-              accept=".csv"
-              ref={fileInputRef}
-              onChange={handleCSVUpload}
+      <div style={sidebarStyle}>
+        <div>
+          {/* ===== LOGO ===== */}
+          <div style={{ textAlign: "center", marginBottom: 30 }}>
+            <img
+              src="/infratechLogo.png"
+              alt="logo"
+              style={{ width: 140 }}
             />
           </div>
-        )}
-      </div>
 
-      {/* FOOTER */}
-      <div style={{ fontSize: 13, color: "#6b7280" }}>
-        Logged in as <br />
-        <b>{user?.role || "User"}</b>
+          {/* ===== MENU ===== */}
+          {menu.map((item) => {
+            const active = location.pathname === item.path;
 
-        <div
-          onClick={logout}
-          style={{
-            marginTop: 15,
-            cursor: "pointer",
-            color: "#ef4444",
-            fontWeight: 600,
-          }}
-        >
-          🚪 Logout
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => isMobile && setIsOpen(false)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  marginBottom: 8,
+                  textDecoration: "none",
+                  background: active ? "#2563eb" : "transparent",
+                  color: active ? "white" : "#374151",
+                  fontWeight: 500,
+                  transition: "0.2s",
+                }}
+              >
+                <span>{item.icon}</span>
+                {item.name}
+              </Link>
+            );
+          })}
+
+          {/* ===== CSV UPLOAD ===== */}
+          {(user?.role === "admin" || user?.role === "sales_manager") && (
+            <div
+              onClick={() => fileInputRef.current.click()}
+              style={{
+                padding: "12px 14px",
+                cursor: "pointer",
+                marginTop: 10,
+                color: "#374151",
+              }}
+            >
+              ⧉ Upload CSV
+              <input
+                hidden
+                type="file"
+                accept=".csv"
+                ref={fileInputRef}
+                onChange={handleCSVUpload}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ===== FOOTER ===== */}
+        <div style={{ fontSize: 13, color: "#6b7280" }}>
+          Logged in as <br />
+          <b>{user?.role || "User"}</b>
+
+          <div
+            onClick={logout}
+            style={{
+              marginTop: 15,
+              cursor: "pointer",
+              color: "#ef4444",
+              fontWeight: 600,
+            }}
+          >
+            🚪 Logout
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

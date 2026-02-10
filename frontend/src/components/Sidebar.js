@@ -1,16 +1,24 @@
 import React, { useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const fileInputRef = useRef();
 
+  /* ================= TOKEN SAFE ================= */
   const token = localStorage.getItem("token");
-  const user = token ? JSON.parse(atob(token.split(".")[1])) : null;
-  const isSalesAgent = user?.role === "sales_agent";
 
+  let user = null;
+  try {
+    user = token ? JSON.parse(atob(token.split(".")[1])) : null;
+  } catch {
+    user = null;
+  }
+
+  /* ================= CSV UPLOAD ================= */
   const handleCSVUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -22,109 +30,130 @@ export default function Sidebar() {
       await axios.post(
         "http://localhost:5000/api/leads/bulk-upload",
         formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      toast.success("CSV uploaded successfully ✔");
-      window.location.reload();
-    } catch (err) {
-      toast.error("CSV upload failed");
-    } finally {
+      toast.success("CSV Uploaded Successfully");
       e.target.value = "";
+      window.location.reload();
+    } catch {
+      toast.error("Upload failed");
     }
   };
 
-  const menu = [
-    { name: "Leads", path: "/", icon: "👥" },
+  /* ================= LOGOUT ================= */
+  const logout = () => {
+    localStorage.removeItem("token");
+    toast.success("Logged out");
+    navigate("/login");
+  };
 
-    // ✅ NEW: Follow Ups (ONLY ADDITION)
+  /* ================= MENU ================= */
+  const menu = [
+    { name: "Dashboard", path: "/", icon: "📊" },
+    { name: "Leads", path: "/leads", icon: "👥" },
     { name: "Follow Ups", path: "/followups", icon: "📅" },
 
-    ...(!isSalesAgent ? [{ name: "Add Lead", path: "/add", icon: "➕" }] : []),
+    ...(user?.role === "admin" || user?.role === "sales_manager"
+      ? [{ name: "Add Lead", path: "/add", icon: "➕" }]
+      : []),
+
+    ...(user?.role === "admin"
+      ? [{ name: "Users", path: "/users", icon: "👤" }]
+      : []),
+
+    ...(user?.role !== "sales_agent"
+      ? [{ name: "Reports", path: "/reports", icon: "📈" }]
+      : []),
   ];
 
   return (
     <div
       style={{
-        width: "240px",
-        background: "linear-gradient(180deg, #0f1b2d, #092030)",
-        color: "white",
+        width: 240,
+        background: "#ffffff",
+        borderRight: "1px solid #e5e7eb",
         minHeight: "100vh",
-        padding: "20px 10px",
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
       }}
     >
-      <h2 style={{ color: "white", paddingLeft: 10, marginBottom: 30 }}>
-        ATISUNYA CRM
-      </h2>
+      <div>
+        {/* LOGO */}
+        <div style={{ textAlign: "center", marginBottom: 30 }}>
+          <img src="/infratechLogo.png" alt="logo" style={{ width: 150 }} />
+        </div>
 
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {menu.map((item) => (
-          <li
-            key={item.path}
-            style={{
-              marginBottom: 8,
-              background:
-                location.pathname === item.path
-                  ? "rgba(255,255,255,0.15)"
-                  : "",
-              borderRadius: 6,
-            }}
-          >
+        {/* MENU */}
+        {menu.map((item) => {
+          const active = location.pathname === item.path;
+
+          return (
             <Link
+              key={item.path}
               to={item.path}
               style={{
                 display: "flex",
                 alignItems: "center",
-                padding: "12px 14px",
-                color: "white",
-                textDecoration: "none",
-                fontSize: 15,
                 gap: 12,
+                padding: "12px 14px",
+                borderRadius: 10,
+                marginBottom: 8,
+                textDecoration: "none",
+                background: active ? "#2563eb" : "transparent",
+                color: active ? "white" : "#374151",
+                fontWeight: 500,
+                transition: "0.2s",
               }}
             >
               <span>{item.icon}</span>
               {item.name}
             </Link>
-          </li>
-        ))}
+          );
+        })}
 
+        {/* CSV UPLOAD */}
         {(user?.role === "admin" || user?.role === "sales_manager") && (
-          <li
-            style={{
-              marginTop: 8,
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
+          <div
             onClick={() => fileInputRef.current.click()}
+            style={{
+              padding: "12px 14px",
+              cursor: "pointer",
+              marginTop: 10,
+              color: "#374151",
+            }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "12px 14px",
-                gap: 12,
-                color: "white",
-              }}
-            >
-              <span style={{ color: "#1e40af", fontSize: 18 }}>⧉</span>
-              Upload CSV
-            </div>
-
+            ⧉ Upload CSV
             <input
+              hidden
               type="file"
               accept=".csv"
-              hidden
               ref={fileInputRef}
               onChange={handleCSVUpload}
             />
-          </li>
+          </div>
         )}
-      </ul>
+      </div>
+
+      {/* FOOTER */}
+      <div style={{ fontSize: 13, color: "#6b7280" }}>
+        Logged in as <br />
+        <b>{user?.role || "User"}</b>
+
+        <div
+          onClick={logout}
+          style={{
+            marginTop: 15,
+            cursor: "pointer",
+            color: "#ef4444",
+            fontWeight: 600,
+          }}
+        >
+          🚪 Logout
+        </div>
+      </div>
     </div>
   );
 }

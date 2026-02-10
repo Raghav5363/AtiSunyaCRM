@@ -13,7 +13,7 @@ router.post("/register", async (req, res) => {
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: "User already exists" });
 
-    const user = await User.create({ email, password, role }); // password auto-hashed
+    const user = await User.create({ email, password, role });
 
     const token = jwt.sign(
       { id: user._id, role: user.role },
@@ -22,8 +22,9 @@ router.post("/register", async (req, res) => {
     );
 
     res.status(201).json({ id: user._id, email: user.email, role: user.role, token });
+
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -45,8 +46,9 @@ router.post("/login", async (req, res) => {
     );
 
     res.json({ id: user._id, email: user.email, role: user.role, token });
+
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 });
 

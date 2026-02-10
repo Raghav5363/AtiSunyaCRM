@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -12,15 +13,17 @@ const followupRoutes = require("./routes/followupRoutes");
 const app = express();
 
 /* =========================
-   CORS CONFIG (FIX FOR MOBILE)
-   ========================= */
+   DEBUG (CHECK ENV LOAD)
+========================= */
+console.log("MONGO_URI from ENV:", process.env.MONGO_URI);
+
+/* =========================
+   CORS
+========================= */
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "http://10.234.215.249:3000" // 👈 your laptop IP
-    ],
-    credentials: true
+    origin: "*", // allow all for now (deployment ke baad restrict karenge)
+    credentials: true,
   })
 );
 
@@ -28,7 +31,7 @@ app.use(express.json());
 
 /* =========================
    ROUTES
-   ========================= */
+========================= */
 app.use("/api/auth", authRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/users", userRoutes);
@@ -37,22 +40,23 @@ app.use("/api/followups", followupRoutes);
 
 /* =========================
    DATABASE
-   ========================= */
-const MONGO_URI =
-  process.env.MONGO_URI || "mongodb://127.0.0.1:27017/atisunya_crm";
-
+========================= */
 mongoose
-  .connect(MONGO_URI)
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => {
-    console.error("❌ MongoDB error:", err);
-    process.exit(1);
+    console.log("❌ MongoDB ERROR:");
+    console.log(err.message);
   });
 
 /* =========================
    SERVER
-   ========================= */
+========================= */
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () =>
   console.log(`🚀 Server running on http://localhost:${PORT}`)
 );

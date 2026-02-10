@@ -3,13 +3,7 @@ const Lead = require("../models/lead");
 const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
 
-const multer = require("multer");
-const csv = require("csv-parser");
-const fs = require("fs");
-
 const router = express.Router();
-
-const upload = multer({ dest: "uploads/" });
 
 /* =========================
    CREATE LEAD
@@ -28,12 +22,13 @@ router.post(
         phone,
         status,
         source,
-        assignedTo: assignedTo || null,
+        assignedTo: assignedTo || req.user.id,
       });
 
       await lead.save();
       res.status(201).json(lead);
     } catch (err) {
+      console.log(err);
       res.status(400).json({ message: "Failed to create lead" });
     }
   }
@@ -46,9 +41,15 @@ router.get("/", protect, async (req, res) => {
   try {
     let filter = {};
 
-    // Agent only sees assigned leads
+    // Agent → only own leads
     if (req.user.role === "sales_agent") {
       filter.assignedTo = req.user.id;
+    }
+
+    // Manager → agents leads
+    if (req.user.role === "sales_manager") {
+      const agents = await User.find({ role: "sales_agent" }).select("_id");
+      filter.assignedTo = { $in: agents.map(a => a._id) };
     }
 
     const leads = await Lead.find(filter)
@@ -56,8 +57,105 @@ router.get("/", protect, async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json(leads);
-  } catch {
+  } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Failed to fetch leads" });
+  }
+});
+
+/* =========================
+   DASHBOARD SUMMARY
+========================= */
+router.get("/stats/summary", protect, async (req, res) => {
+  try {
+    let filter = {};
+
+    if (req.user.role === "sales_agent") {
+      filter.assignedTo = req.user.id;
+    }
+
+    if (req.user.role === "sales_manager") {
+      const agents = await User.find({ role: "sales_agent" }).select("_id");
+      filter.assignedTo = { $in: agents.map(a => a._id) };
+    }
+
+    const stats = {
+      total: await Lead.countDocuments(filter),
+      new: await Lead.countDocuments({ ...filter, status: "new" }),
+      followup: await Lead.countDocuments({ ...filter, status: "followup" }),
+      converted: await Lead.countDocuments({ ...filter, status: "converted" }),
+    };
+
+    res.json(stats);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Stats error" });
+  }
+});
+
+/* =========================
+   MONTHLY REPORT
+========================= */
+router.get("/stats/monthly", protect, async (req, res) => {
+  try {
+    let match = {};
+
+    // Role filtering
+    if (req.user.role === "sales_agent") {
+      match.assignedTo = req.user._id;
+    }
+
+    const data = await Lead.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.json(data);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Monthly error" });
+  }
+});
+
+/* =========================
+   TEAM PERFORMANCE
+========================= */
+router.get("/stats/team", protect, async (req, res) => {
+  try {
+    const data = await Lead.aggregate([
+      {
+        $group: {
+          _id: "$assignedTo",
+          total: { $sum: 1 },
+          converted: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "converted"] }, 1, 0],
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      { $sort: { converted: -1 } }
+    ]);
+
+    res.json(data);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Team stats error" });
   }
 });
 
@@ -66,14 +164,14 @@ router.get("/", protect, async (req, res) => {
 ========================= */
 router.get("/:id", protect, async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.id).populate(
-      "assignedTo",
-      "email role"
-    );
+    const lead = await Lead.findById(req.params.id)
+      .populate("assignedTo", "email role");
 
-    if (!lead) return res.status(404).json({ message: "Lead not found" });
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
 
-    // Agent restriction
+    // Agent cannot open others leads
     if (
       req.user.role === "sales_agent" &&
       lead.assignedTo?._id.toString() !== req.user.id
@@ -82,7 +180,8 @@ router.get("/:id", protect, async (req, res) => {
     }
 
     res.json(lead);
-  } catch {
+  } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error loading lead" });
   }
 });
@@ -103,14 +202,15 @@ router.put(
       );
 
       res.json(updatedLead);
-    } catch {
+    } catch (err) {
+      console.log(err);
       res.status(400).json({ message: "Failed to update lead" });
     }
   }
 );
 
 /* =========================
-   DELETE LEAD (ADMIN ONLY)
+   DELETE LEAD
 ========================= */
 router.delete(
   "/:id",
@@ -120,42 +220,14 @@ router.delete(
     try {
       await Lead.findByIdAndDelete(req.params.id);
       res.json({ message: "Lead deleted" });
-    } catch {
+    } catch (err) {
+      console.log(err);
       res.status(500).json({ message: "Delete failed" });
     }
   }
 );
 
 /* =========================
-   ADD ACTIVITY
+   EXPORT ROUTER
 ========================= */
-router.post("/:id/activities", protect, async (req, res) => {
-  try {
-    const lead = await Lead.findById(req.params.id);
-
-    if (!lead) return res.status(404).json({ message: "Lead not found" });
-
-    // Agent only for assigned leads
-    if (
-      req.user.role === "sales_agent" &&
-      lead.assignedTo?.toString() !== req.user.id
-    ) {
-      return res.status(403).json({ message: "Not your lead" });
-    }
-
-    const activity = {
-      description: req.body.notes,
-      createdBy: req.user.id,
-      createdAt: new Date(),
-    };
-
-    lead.activities.unshift(activity);
-    await lead.save();
-
-    res.status(201).json(activity);
-  } catch {
-    res.status(500).json({ message: "Failed to add activity" });
-  }
-});
-
 module.exports = router;

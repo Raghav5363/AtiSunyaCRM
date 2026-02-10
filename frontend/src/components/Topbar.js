@@ -6,15 +6,20 @@ export default function Topbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const token = localStorage.getItem("token");
+  const user = token ? JSON.parse(atob(token.split(".")[1])) : null;
+
   const pageTitles = {
-    "/": "Leads",
+    "/": "Leads Dashboard",
     "/add": "Add Lead",
-    "/sitemap": "Sitemap",
+    "/followups": "Follow Ups",
+    "/users": "User Management",
   };
 
   const getPageTitle = () => {
     if (location.pathname.startsWith("/edit")) return "Edit Lead";
-    return pageTitles[location.pathname] || "CRM";
+    if (location.pathname.startsWith("/lead")) return "Lead Details";
+    return pageTitles[location.pathname] || "Dashboard";
   };
 
   const handleLogout = () => {
@@ -25,32 +30,64 @@ export default function Topbar() {
   return (
     <div
       style={{
-        height: 60,
-        background: "linear-gradient(180deg, #0f1b2d, #092030)",
+        height: 65,
+        background: "#ffffff",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 20px",
-        fontSize: 20,
-        fontWeight: 600,
-        color: "white",
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
-        borderLeft: "2px solid rgba(255,255,255,0.08)",
+        padding: "0 30px",
+        borderBottom: "1px solid #e5e7eb",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
       }}
     >
-      <div>{getPageTitle()}</div>
-
+      {/* PAGE TITLE */}
       <div
         style={{
-          cursor: "pointer",
-          fontSize: 14,
-          fontWeight: 500,
-          opacity: 0.85,
+          fontSize: 20,
+          fontWeight: 600,
+          color: "#111827",
         }}
-        onClick={handleLogout}
-        title="Logout"
       >
-        Logout
+        {getPageTitle()}
+      </div>
+
+      {/* RIGHT SECTION */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 20,
+        }}
+      >
+        {/* USER INFO */}
+        <div
+          style={{
+            fontSize: 14,
+            color: "#374151",
+            background: "#f3f4f6",
+            padding: "8px 14px",
+            borderRadius: 20,
+          }}
+        >
+          {user?.role?.replace("_", " ").toUpperCase()}
+        </div>
+
+        {/* LOGOUT BUTTON */}
+        <button
+          onClick={handleLogout}
+          style={{
+            background: "#ef4444",
+            color: "white",
+            border: "none",
+            padding: "8px 16px",
+            borderRadius: 8,
+            cursor: "pointer",
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
+          Logout
+        </button>
       </div>
     </div>
   );

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
-const SIDEBAR_WIDTH = 240;
-
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -52,7 +50,6 @@ export default function Layout({ children }) {
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          marginLeft: isMobile ? 0 : SIDEBAR_WIDTH,
           width: "100%",
           transition: "0.3s",
         }}
@@ -72,7 +69,6 @@ export default function Layout({ children }) {
             overflowY: "auto",
           }}
         >
-          {/* children wrapper safe */}
           <div style={{ width: "100%" }}>
             {children}
           </div>

@@ -1,8 +1,19 @@
+/* ===== GOOGLE FONT ===== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+/* ===== BASE RESET ===== */
 html, body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: Inter, Segoe UI, sans-serif;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-weight: 400;
+  color: #374151;
+  background: #f7f9fc;
+
+  /* smooth fonts */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -13,23 +24,108 @@ html, body {
   min-height: 100vh;
 }
 
-/* --- CRM layout tweaks --- */
-.card { background: #fff; border-radius: 8px; padding: 18px; box-shadow: 0 4px 12px rgba(2,6,23,0.04); }
-.lead-table { width: 100%; border-collapse: collapse; font-size: 15px; }
-.lead-table th { background: #f1f7fb; padding: 12px; text-align: left; color: #111827; font-weight: 700;}
-.lead-table td { padding: 12px; border-bottom: 1px solid #eef2f6; vertical-align: middle; }
-.badge { padding: 6px 10px; border-radius: 14px; font-weight: 700; font-size: 13px; }
-.badge.new { background: #e6f6ff; color: #0369a1; }
-.badge.contacted { background: #fff7e6; color: #92400e; }
-.badge.converted { background: #ecfdf5; color: #166534; }
 
-.search-input { font-size: 16px; }
+/* ===== CRM CARD ===== */
+.card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.06);
+}
 
-/* modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.36); display:flex; align-items:center; justify-content:center; z-index:60; }
-.modal.card { max-width: 520px; width: 100%; padding: 20px; border-radius: 10px; }
 
-/* sidebar responsiveness */
+/* ===== TABLE ===== */
+.lead-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.lead-table th {
+  background: #f8fafc;
+  padding: 14px;
+  text-align: left;
+  color: #111827;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.lead-table td {
+  padding: 14px;
+  border-bottom: 1px solid #eef2f6;
+  vertical-align: middle;
+  color: #4b5563;
+}
+
+.lead-table tr:hover {
+  background: #f9fbfd;
+}
+
+
+/* ===== BADGES ===== */
+.badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.3px;
+}
+
+.badge.new {
+  background: #e6f6ff;
+  color: #0369a1;
+}
+
+.badge.contacted {
+  background: #fff7e6;
+  color: #92400e;
+}
+
+.badge.converted {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+
+/* ===== SEARCH ===== */
+.search-input {
+  font-size: 15px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #2563eb;
+}
+
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:60;
+}
+
+.modal.card {
+  max-width: 520px;
+  width: 100%;
+  padding: 24px;
+  border-radius: 12px;
+}
+
+
+/* ===== SIDEBAR RESPONSIVE ===== */
 @media (max-width: 900px) {
-  main { padding: 16px !important; }
+  main {
+    padding: 16px !important;
+  }
 }

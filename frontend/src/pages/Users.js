@@ -12,17 +12,9 @@ export default function Users() {
   const token = localStorage.getItem("token");
   const currentRole = localStorage.getItem("role");
 
-  const API = "http://localhost:5000/api/users";
-
-  // 🔒 ADMIN CHECK
-  if (currentRole !== "admin") {
-    return (
-      <div style={styles.noAccess}>
-        <h2>Access Denied</h2>
-        <p>Only Admin can manage users</p>
-      </div>
-    );
-  }
+  // ✅ FIXED API URL (change in production)
+  const API =
+    process.env.REACT_APP_API_URL || "http://localhost:5000/api/user";
 
   // FETCH USERS
   const fetchUsers = async () => {
@@ -31,14 +23,17 @@ export default function Users() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(res.data);
-    } catch {
+    } catch (err) {
       toast.error("Failed to load users");
     }
   };
 
+  // ✅ Hook must be called unconditionally
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (currentRole === "admin") {
+      fetchUsers();
+    }
+  }, [currentRole]);
 
   // ADD USER
   const addUser = async () => {
@@ -75,25 +70,43 @@ export default function Users() {
   const deleteUser = async (id) => {
     if (!window.confirm("Delete user?")) return;
 
-    await axios.delete(`${API}/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    try {
+      await axios.delete(`${API}/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    toast.success("Deleted");
-    fetchUsers();
+      toast.success("Deleted");
+      fetchUsers();
+    } catch (err) {
+      toast.error("Delete failed");
+    }
   };
 
   // UPDATE ROLE
-  const changeRole = async (id, role) => {
-    await axios.put(
-      `${API}/${id}`,
-      { role },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+  const changeRole = async (id, newRole) => {
+    try {
+      await axios.put(
+        `${API}/${id}`,
+        { role: newRole },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    toast.success("Role updated");
-    fetchUsers();
+      toast.success("Role updated");
+      fetchUsers();
+    } catch (err) {
+      toast.error("Update failed");
+    }
   };
+
+  // 🔒 ADMIN CHECK (after hooks)
+  if (currentRole !== "admin") {
+    return (
+      <div style={styles.noAccess}>
+        <h2>Access Denied</h2>
+        <p>Only Admin can manage users</p>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.wrapper}>

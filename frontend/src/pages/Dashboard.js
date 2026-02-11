@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 
 import {
@@ -27,49 +27,68 @@ export default function Dashboard() {
   const [monthly, setMonthly] = useState([]);
 
   const token = localStorage.getItem("token");
-  const user = JSON.parse(atob(token.split(".")[1]));
 
-  useEffect(() => {
-    fetchStats();
-    fetchMonthly();
-  }, []);
+  const API =
+    process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+
+  // ✅ Safe token parsing
+  let user = null;
+  try {
+    user = token ? JSON.parse(atob(token.split(".")[1])) : null;
+  } catch {
+    user = null;
+  }
 
   /* ================= FETCH SUMMARY ================= */
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
+      if (!token) return;
+
       const res = await axios.get(
-        "http://localhost:5000/api/leads/stats/summary",
+        `${API}/leads/stats/summary`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
       setStats(res.data);
     } catch (err) {
       console.log(err);
     }
-  };
+  }, [API, token]);
 
   /* ================= FETCH MONTHLY ================= */
-  const fetchMonthly = async () => {
+  const fetchMonthly = useCallback(async () => {
     try {
+      if (!token) return;
+
       const res = await axios.get(
-        "http://localhost:5000/api/leads/stats/monthly",
+        `${API}/leads/stats/monthly`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
       setMonthly(res.data);
     } catch (err) {
       console.log(err);
     }
-  };
+  }, [API, token]);
+
+  // ✅ Fixed dependency error
+  useEffect(() => {
+    fetchStats();
+    fetchMonthly();
+  }, [fetchStats, fetchMonthly]);
 
   /* ================= CARD ================= */
   const Card = ({ title, value }) => (
-    <div style={{
-      background: "white",
-      padding: 25,
-      borderRadius: 12,
-      width: 230,
-      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-      textAlign: "center",
-    }}>
+    <div
+      style={{
+        background: "white",
+        padding: 25,
+        borderRadius: 12,
+        width: 230,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+        textAlign: "center",
+      }}
+    >
       <h3>{title}</h3>
       <div style={{ fontSize: 32, fontWeight: "bold", marginTop: 10 }}>
         {value || 0}
@@ -94,11 +113,11 @@ export default function Dashboard() {
 
   /* ================= BAR CHART ================= */
   const barData = {
-    labels: monthly.map(m => `Month ${m._id}`),
+    labels: monthly.map((m) => `Month ${m._id}`),
     datasets: [
       {
         label: "Leads",
-        data: monthly.map(m => m.count),
+        data: monthly.map((m) => m.count),
         backgroundColor: "#2980b9",
       },
     ],
@@ -106,15 +125,17 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: 30 }}>
-      <h2>CRM Dashboard ({user.role})</h2>
+      <h2>CRM Dashboard ({user?.role || "User"})</h2>
 
       {/* ================= STATS ================= */}
-      <div style={{
-        display: "flex",
-        gap: 25,
-        marginTop: 30,
-        flexWrap: "wrap"
-      }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 25,
+          marginTop: 30,
+          flexWrap: "wrap",
+        }}
+      >
         <Card title="Total Leads" value={stats.total} />
         <Card title="New Leads" value={stats.new} />
         <Card title="Follow Ups" value={stats.followup} />
@@ -122,13 +143,14 @@ export default function Dashboard() {
       </div>
 
       {/* ================= CHARTS ================= */}
-      <div style={{
-        display: "flex",
-        gap: 50,
-        marginTop: 50,
-        flexWrap: "wrap"
-      }}>
-
+      <div
+        style={{
+          display: "flex",
+          gap: 50,
+          marginTop: 50,
+          flexWrap: "wrap",
+        }}
+      >
         <div style={{ width: 350 }}>
           <h3>Status Distribution</h3>
           <Pie data={pieData} />
@@ -138,7 +160,6 @@ export default function Dashboard() {
           <h3>Monthly Leads</h3>
           <Bar data={barData} />
         </div>
-
       </div>
     </div>
   );

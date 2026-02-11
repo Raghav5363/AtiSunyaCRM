@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import DeletePopup from "./DeletePopup";
@@ -15,6 +15,10 @@ export default function Leads() {
   const navigate = useNavigate();
 
   const token = localStorage.getItem("token");
+
+  const API =
+    process.env.REACT_APP_API_URL || "http://localhost:5000/api/leads";
+
   const user = token ? JSON.parse(atob(token.split(".")[1])) : null;
 
   /* ✅ ROLE LOGIC */
@@ -26,18 +30,15 @@ export default function Leads() {
   const canEdit = isAdmin || isManager;
   const canDelete = isAdmin;
 
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
-  const fetchLeads = async () => {
+  /* ================= FETCH LEADS ================= */
+  const fetchLeads = useCallback(async () => {
     try {
       if (!token) {
         toast.error("Unauthorized. Please login again.");
         return;
       }
 
-      const res = await axios.get("http://localhost:5000/api/leads", {
+      const res = await axios.get(API, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -45,8 +46,13 @@ export default function Leads() {
     } catch {
       toast.error("Failed to load leads");
     }
-  };
+  }, [API, token]);
 
+  useEffect(() => {
+    fetchLeads();
+  }, [fetchLeads]);
+
+  /* ================= DELETE ================= */
   const handleDeleteClick = (id) => {
     setSelectedLeadId(id);
     setShowDeletePopup(true);
@@ -54,10 +60,9 @@ export default function Leads() {
 
   const handleConfirmDelete = async () => {
     try {
-      await axios.delete(
-        `http://localhost:5000/api/leads/${selectedLeadId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await axios.delete(`${API}/${selectedLeadId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       toast.success("Lead deleted successfully ✔");
 
@@ -72,19 +77,20 @@ export default function Leads() {
     }
   };
 
+  /* ================= FILTER ================= */
   const filteredLeads = leads.filter((lead) => {
     const s = search.toLowerCase();
 
     const matchSearch =
-      lead.name.toLowerCase().includes(s) ||
-      lead.email.toLowerCase().includes(s) ||
-      lead.phone.toLowerCase().includes(s) ||
-      lead.status.toLowerCase().includes(s);
+      lead.name?.toLowerCase().includes(s) ||
+      lead.email?.toLowerCase().includes(s) ||
+      lead.phone?.toLowerCase().includes(s) ||
+      lead.status?.toLowerCase().includes(s);
 
     const matchStatus =
       filterStatus === "all"
         ? true
-        : lead.status.toLowerCase() === filterStatus;
+        : lead.status?.toLowerCase() === filterStatus;
 
     return matchSearch && matchStatus;
   });
@@ -171,7 +177,7 @@ export default function Leads() {
                 <td style={{ padding: 12 }}>{lead.phone}</td>
 
                 <td style={{ padding: 12 }}>
-                  {lead.status.replace("_", " ")}
+                  {lead.status?.replace("_", " ")}
                 </td>
 
                 <td style={{ padding: 12 }}>

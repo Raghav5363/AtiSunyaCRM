@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -10,21 +10,26 @@ export default function FollowUps() {
 
   const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    fetchFollowUps();
-  }, []);
+  const API =
+    process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
-  const fetchFollowUps = async () => {
+  /* ================= FETCH FOLLOWUPS ================= */
+  const fetchFollowUps = useCallback(async () => {
     try {
+      if (!token) {
+        toast.error("Unauthorized. Please login again.");
+        return;
+      }
+
       const headers = { Authorization: `Bearer ${token}` };
 
       const todayRes = await axios.get(
-        "http://localhost:5000/api/followups/today",
+        `${API}/followups/today`,
         { headers }
       );
 
       const overdueRes = await axios.get(
-        "http://localhost:5000/api/followups/overdue",
+        `${API}/followups/overdue`,
         { headers }
       );
 
@@ -33,20 +38,28 @@ export default function FollowUps() {
     } catch (err) {
       toast.error("Failed to load follow-ups");
     }
-  };
+  }, [API, token]);
 
+  // ✅ Fixed dependency error
+  useEffect(() => {
+    fetchFollowUps();
+  }, [fetchFollowUps]);
+
+  /* ================= RENDER LIST ================= */
   const renderList = (list, isOverdue = false) =>
     list.length > 0 ? (
       list.map((item) => (
         <div
           key={item._id}
-          onClick={() => navigate(`/lead/${item.leadId._id}`)}
+          onClick={() => navigate(`/lead/${item.leadId?._id}`)}
           style={{
             padding: "14px 12px",
             borderBottom: "1px solid #e5e7eb",
             cursor: "pointer",
             transition: "background 0.2s",
-            borderLeft: isOverdue ? "4px solid #dc2626" : "4px solid transparent"
+            borderLeft: isOverdue
+              ? "4px solid #dc2626"
+              : "4px solid transparent",
           }}
           onMouseEnter={(e) =>
             (e.currentTarget.style.background = "#f9fafb")
@@ -56,14 +69,16 @@ export default function FollowUps() {
           }
         >
           <div style={{ fontWeight: 600, color: "#111827" }}>
-            {item.leadId?.name}
+            {item.leadId?.name || "Unknown"}
           </div>
           <div style={{ color: "#4b5563", marginTop: 2 }}>
-            {item.leadId?.phone}
+            {item.leadId?.phone || "-"}
           </div>
           <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
             Follow-up:{" "}
-            {new Date(item.nextFollowUpDate).toLocaleDateString()}
+            {item.nextFollowUpDate
+              ? new Date(item.nextFollowUpDate).toLocaleDateString()
+              : "-"}
           </div>
         </div>
       ))
@@ -84,7 +99,7 @@ export default function FollowUps() {
     marginBottom: 14,
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center"
+    alignItems: "center",
   };
 
   return (
@@ -93,7 +108,7 @@ export default function FollowUps() {
         background: "white",
         padding: 22,
         borderRadius: 12,
-        boxShadow: "0 2px 10px rgba(0,0,0,0.06)"
+        boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
       }}
     >
       {/* TODAY */}
@@ -101,7 +116,7 @@ export default function FollowUps() {
         style={{
           ...headerBaseStyle,
           background: "linear-gradient(180deg, #0f1b2d, #092030)",
-          color: "white"
+          color: "white",
         }}
       >
         <span>Today's Follow-ups</span>
@@ -110,7 +125,7 @@ export default function FollowUps() {
             background: "rgba(255,255,255,0.15)",
             padding: "4px 10px",
             borderRadius: 20,
-            fontSize: 13
+            fontSize: 13,
           }}
         >
           {today.length}
@@ -126,7 +141,7 @@ export default function FollowUps() {
         style={{
           ...headerBaseStyle,
           background: "#7f1d1d",
-          color: "white"
+          color: "white",
         }}
       >
         <span>Overdue Follow-ups</span>
@@ -135,7 +150,7 @@ export default function FollowUps() {
             background: "rgba(255,255,255,0.2)",
             padding: "4px 10px",
             borderRadius: 20,
-            fontSize: 13
+            fontSize: 13,
           }}
         >
           {overdue.length}

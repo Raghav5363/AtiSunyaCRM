@@ -1,7 +1,9 @@
-// frontend/src/components/EditLead.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
+
+const BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 export default function EditLead() {
   const { id } = useParams();
@@ -18,11 +20,25 @@ export default function EditLead() {
   const [loading, setLoading] = useState(true);
   const [apiMsg, setApiMsg] = useState("");
 
+  const token = localStorage.getItem("token");
+
+  const authConfig = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+
+  /* ================= FETCH LEAD ================= */
   useEffect(() => {
     const fetchLead = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/leads/${id}`);
+        const res = await axios.get(
+          `${BASE_URL}/api/leads/${id}`,
+          authConfig
+        );
+
         const lead = res.data;
+
         setForm({
           name: lead.name || "",
           email: lead.email || "",
@@ -30,6 +46,7 @@ export default function EditLead() {
           status: lead.status || "new",
           source: lead.source || "",
         });
+
         setLoading(false);
       } catch (err) {
         console.error(err);
@@ -41,15 +58,26 @@ export default function EditLead() {
     fetchLead();
   }, [id]);
 
+  /* ================= HANDLE CHANGE ================= */
   const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
+  /* ================= SUBMIT ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setApiMsg("");
+
     try {
-      await axios.put(`http://localhost:5000/api/leads/${id}, form`);
+      await axios.put(
+        `${BASE_URL}/api/leads/${id}`,
+        form,
+        authConfig
+      );
+
       navigate("/");
     } catch (err) {
       console.error(err);
@@ -63,7 +91,8 @@ export default function EditLead() {
     <div
       style={{
         padding: "30px",
-        background: "linear-gradient(135deg, #0a1a32, #132d4a, #1d3b63)",
+        background:
+          "linear-gradient(135deg, #0a1a32, #132d4a, #1d3b63)",
         minHeight: "100vh",
         display: "flex",
         justifyContent: "center",
@@ -93,13 +122,18 @@ export default function EditLead() {
         </h2>
 
         {apiMsg && (
-          <div style={{ color: "red", textAlign: "center", marginBottom: 10 }}>
+          <div
+            style={{
+              color: "red",
+              textAlign: "center",
+              marginBottom: 10,
+            }}
+          >
             {apiMsg}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* Input Fields */}
           <div className="form-row">
             <input
               name="name"
@@ -143,6 +177,8 @@ export default function EditLead() {
             >
               <option value="new">New</option>
               <option value="contacted">Contacted</option>
+              <option value="followup">Follow Up</option>
+              <option value="no_connect">No Connect</option>
               <option value="converted">Converted</option>
             </select>
           </div>
@@ -157,9 +193,18 @@ export default function EditLead() {
             />
           </div>
 
-          {/* Buttons */}
-          <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-            <button style={cancelBtn} type="button" onClick={() => navigate("/")}>
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              marginTop: 20,
+            }}
+          >
+            <button
+              style={cancelBtn}
+              type="button"
+              onClick={() => navigate("/")}
+            >
               Cancel
             </button>
 

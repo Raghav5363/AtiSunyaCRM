@@ -10,8 +10,9 @@ export default function FollowUps() {
 
   const token = localStorage.getItem("token");
 
-  const API =
-    process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+  // ✅ Production + Local Safe Base URL
+  const BASE_URL =
+    process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   /* ================= FETCH FOLLOWUPS ================= */
   const fetchFollowUps = useCallback(async () => {
@@ -24,23 +25,23 @@ export default function FollowUps() {
       const headers = { Authorization: `Bearer ${token}` };
 
       const todayRes = await axios.get(
-        `${API}/followups/today`,
+        `${BASE_URL}/api/followups/today`,
         { headers }
       );
 
       const overdueRes = await axios.get(
-        `${API}/followups/overdue`,
+        `${BASE_URL}/api/followups/overdue`,
         { headers }
       );
 
       setToday(todayRes.data);
       setOverdue(overdueRes.data);
     } catch (err) {
+      console.log(err);
       toast.error("Failed to load follow-ups");
     }
-  }, [API, token]);
+  }, [BASE_URL, token]);
 
-  // ✅ Fixed dependency error
   useEffect(() => {
     fetchFollowUps();
   }, [fetchFollowUps]);
@@ -53,111 +54,148 @@ export default function FollowUps() {
           key={item._id}
           onClick={() => navigate(`/lead/${item.leadId?._id}`)}
           style={{
-            padding: "14px 12px",
-            borderBottom: "1px solid #e5e7eb",
-            cursor: "pointer",
-            transition: "background 0.2s",
+            ...styles.card,
             borderLeft: isOverdue
               ? "4px solid #dc2626"
-              : "4px solid transparent",
+              : "4px solid #0d6efd",
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.background = "#f9fafb")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.background = "transparent")
-          }
         >
-          <div style={{ fontWeight: 600, color: "#111827" }}>
+          <div style={styles.name}>
             {item.leadId?.name || "Unknown"}
           </div>
-          <div style={{ color: "#4b5563", marginTop: 2 }}>
-            {item.leadId?.phone || "-"}
+
+          <div style={styles.phone}>
+            📞 {item.leadId?.phone || "-"}
           </div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
-            Follow-up:{" "}
+
+          <div style={styles.date}>
+            📅{" "}
             {item.nextFollowUpDate
-              ? new Date(item.nextFollowUpDate).toLocaleDateString()
+              ? new Date(
+                  item.nextFollowUpDate
+                ).toLocaleDateString()
               : "-"}
           </div>
         </div>
       ))
     ) : (
-      <div style={{ padding: 14, color: "#6b7280" }}>
-        No follow-ups
-      </div>
+      <div style={styles.empty}>No follow-ups</div>
     );
 
-  const headerBaseStyle = {
-    position: "sticky",
-    top: 0,
-    zIndex: 5,
-    padding: "12px 16px",
-    borderRadius: 8,
-    fontWeight: 600,
-    letterSpacing: "0.3px",
-    marginBottom: 14,
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  };
-
   return (
-    <div
-      style={{
-        background: "white",
-        padding: 22,
-        borderRadius: 12,
-        boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-      }}
-    >
-      {/* TODAY */}
-      <div
-        style={{
-          ...headerBaseStyle,
-          background: "linear-gradient(180deg, #0f1b2d, #092030)",
-          color: "white",
-        }}
-      >
-        <span>Today's Follow-ups</span>
-        <span
-          style={{
-            background: "rgba(255,255,255,0.15)",
-            padding: "4px 10px",
-            borderRadius: 20,
-            fontSize: 13,
-          }}
-        >
-          {today.length}
-        </span>
+    <div style={styles.wrapper}>
+      <div style={styles.container}>
+        {/* TODAY */}
+        <div style={styles.section}>
+          <div style={styles.todayHeader}>
+            <span>Today's Follow-ups</span>
+            <span style={styles.countBadge}>
+              {today.length}
+            </span>
+          </div>
+
+          {renderList(today)}
+        </div>
+
+        {/* OVERDUE */}
+        <div style={styles.section}>
+          <div style={styles.overdueHeader}>
+            <span>Overdue Follow-ups</span>
+            <span style={styles.countBadge}>
+              {overdue.length}
+            </span>
+          </div>
+
+          {renderList(overdue, true)}
+        </div>
       </div>
-
-      {renderList(today)}
-
-      <div style={{ height: 32 }} />
-
-      {/* OVERDUE */}
-      <div
-        style={{
-          ...headerBaseStyle,
-          background: "#7f1d1d",
-          color: "white",
-        }}
-      >
-        <span>Overdue Follow-ups</span>
-        <span
-          style={{
-            background: "rgba(255,255,255,0.2)",
-            padding: "4px 10px",
-            borderRadius: 20,
-            fontSize: 13,
-          }}
-        >
-          {overdue.length}
-        </span>
-      </div>
-
-      {renderList(overdue, true)}
     </div>
   );
 }
+
+/* =========================
+   CSS STYLES
+========================= */
+
+const styles = {
+  wrapper: {
+    padding: "30px",
+    background: "#f4f6f9",
+    minHeight: "100vh",
+  },
+
+  container: {
+    maxWidth: "900px",
+    margin: "auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "40px",
+  },
+
+  section: {
+    background: "white",
+    padding: "20px",
+    borderRadius: "12px",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+  },
+
+  todayHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "18px",
+    fontSize: "18px",
+    fontWeight: 600,
+    color: "#0f172a",
+  },
+
+  overdueHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "18px",
+    fontSize: "18px",
+    fontWeight: 600,
+    color: "#7f1d1d",
+  },
+
+  countBadge: {
+    background: "#e2e8f0",
+    padding: "4px 12px",
+    borderRadius: "20px",
+    fontSize: "13px",
+  },
+
+  card: {
+    padding: "14px 16px",
+    borderRadius: "10px",
+    background: "#fafafa",
+    marginBottom: "12px",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+  },
+
+  name: {
+    fontWeight: 600,
+    fontSize: "15px",
+    color: "#111827",
+  },
+
+  phone: {
+    fontSize: "14px",
+    color: "#4b5563",
+    marginTop: "4px",
+  },
+
+  date: {
+    fontSize: "13px",
+    color: "#6b7280",
+    marginTop: "6px",
+  },
+
+  empty: {
+    padding: "12px",
+    color: "#6b7280",
+  },
+};

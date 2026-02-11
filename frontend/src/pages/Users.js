@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 
@@ -12,12 +12,17 @@ export default function Users() {
   const token = localStorage.getItem("token");
   const currentRole = localStorage.getItem("role");
 
-  // ✅ FIXED API URL (change in production)
-  const API =
-    process.env.REACT_APP_API_URL || "http://localhost:5000/api/user";
+  // ✅ Production API Base URL
+const BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  // FETCH USERS
-  const fetchUsers = async () => {
+const API = `${BASE_URL}/api/users`;
+
+
+  /* =========================
+     FETCH USERS
+  ========================= */
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await axios.get(API, {
         headers: { Authorization: `Bearer ${token}` },
@@ -26,16 +31,20 @@ export default function Users() {
     } catch (err) {
       toast.error("Failed to load users");
     }
-  };
+  }, [API, token]);
 
-  // ✅ Hook must be called unconditionally
+  /* =========================
+     LOAD USERS (ADMIN ONLY)
+  ========================= */
   useEffect(() => {
     if (currentRole === "admin") {
       fetchUsers();
     }
-  }, [currentRole]);
+  }, [currentRole, fetchUsers]);
 
-  // ADD USER
+  /* =========================
+     ADD USER
+  ========================= */
   const addUser = async () => {
     if (!email || !password)
       return toast.error("Email & Password required");
@@ -66,7 +75,9 @@ export default function Users() {
     }
   };
 
-  // DELETE USER
+  /* =========================
+     DELETE USER
+  ========================= */
   const deleteUser = async (id) => {
     if (!window.confirm("Delete user?")) return;
 
@@ -82,7 +93,9 @@ export default function Users() {
     }
   };
 
-  // UPDATE ROLE
+  /* =========================
+     UPDATE ROLE
+  ========================= */
   const changeRole = async (id, newRole) => {
     try {
       await axios.put(
@@ -98,7 +111,9 @@ export default function Users() {
     }
   };
 
-  // 🔒 ADMIN CHECK (after hooks)
+  /* =========================
+     ADMIN CHECK
+  ========================= */
   if (currentRole !== "admin") {
     return (
       <div style={styles.noAccess}>
@@ -181,6 +196,9 @@ export default function Users() {
   );
 }
 
+/* =========================
+   STYLES
+========================= */
 const styles = {
   wrapper: {
     display: "flex",

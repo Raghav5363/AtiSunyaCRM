@@ -3,7 +3,11 @@ import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
-const API_URL = "http://localhost:5000/api/leads";
+// ✅ SAFE BASE URL
+const BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+const API_URL = `${BASE_URL}/api/leads`;
 
 export default function LeadForm() {
   const navigate = useNavigate();
@@ -16,7 +20,6 @@ export default function LeadForm() {
   const [status, setStatus] = useState("new");
   const [source, setSource] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
-
   const [salesAgents, setSalesAgents] = useState([]);
 
   const [emailError, setEmailError] = useState("");
@@ -30,17 +33,20 @@ export default function LeadForm() {
     },
   });
 
+  /* ================= LOAD SALES AGENTS ================= */
   useEffect(() => {
     axios
-      .get("http://localhost:5000/api/users/sales-agents", authConfig())
-      .then(res => setSalesAgents(res.data))
+      .get(`${BASE_URL}/api/users/sales-agents`, authConfig())
+      .then((res) => setSalesAgents(res.data))
       .catch(() => {});
   }, []);
 
+  /* ================= LOAD LEAD (EDIT MODE) ================= */
   useEffect(() => {
     if (!isEdit) return;
 
     setLoading(true);
+
     axios
       .get(`${API_URL}/${id}`, authConfig())
       .then((res) => {
@@ -53,28 +59,37 @@ export default function LeadForm() {
         setAssignedTo(lead.assignedTo?._id || "");
       })
       .catch((err) => {
-        setApiMsg(err?.response?.data?.message || "Failed to load lead");
+        setApiMsg(
+          err?.response?.data?.message || "Failed to load lead"
+        );
       })
       .finally(() => setLoading(false));
   }, [id, isEdit]);
 
+  /* ================= EMAIL VALIDATION ================= */
   useEffect(() => {
     if (!email) return setEmailError("");
+
     if (!email.includes("@") || email.startsWith("@") || email.endsWith("@")) {
       setEmailError("Enter a valid email.");
       return;
     }
+
     const parts = email.split("@");
     if (!parts[1] || !parts[1].includes(".")) {
       setEmailError("Email must contain a domain (example.com)");
       return;
     }
+
     setEmailError("");
   }, [email]);
 
+  /* ================= PHONE VALIDATION ================= */
   useEffect(() => {
     if (!phone) return setPhoneError("");
+
     const cleaned = phone.replace(/\D/g, "");
+
     if (!/^\d{10}$/.test(cleaned)) {
       setPhoneError("Phone must be 10 digits.");
     } else {
@@ -89,12 +104,15 @@ export default function LeadForm() {
     return true;
   };
 
+  /* ================= SUBMIT ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setApiMsg("");
 
     if (!isFormValid()) {
-      setApiMsg("Please fix validation errors before submitting.");
+      setApiMsg(
+        "Please fix validation errors before submitting."
+      );
       return;
     }
 
@@ -111,7 +129,11 @@ export default function LeadForm() {
       setLoading(true);
 
       if (isEdit) {
-        await axios.put(`${API_URL}/${id}`, payload, authConfig());
+        await axios.put(
+          `${API_URL}/${id}`,
+          payload,
+          authConfig()
+        );
         toast.success("Lead updated successfully ✔");
       } else {
         await axios.post(API_URL, payload, authConfig());
@@ -120,31 +142,89 @@ export default function LeadForm() {
 
       navigate("/");
     } catch (err) {
-      setApiMsg(err?.response?.data?.message || "Failed to save lead");
+      setApiMsg(
+        err?.response?.data?.message ||
+          "Failed to save lead"
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(to bottom right, #d8c7ff, #f4e9ff)", padding: 20 }}>
-      <div style={{ width: "100%", maxWidth: 600, background: "white", borderRadius: 16, padding: "32px 40px", boxShadow: "0 4px 18px rgba(0,0,0,0.12)" }}>
-        {apiMsg && <div style={{ color: "red", marginBottom: 12, textAlign: "center" }}>{apiMsg}</div>}
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background:
+          "linear-gradient(to bottom right, #d8c7ff, #f4e9ff)",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 600,
+          background: "white",
+          borderRadius: 16,
+          padding: "32px 40px",
+          boxShadow: "0 4px 18px rgba(0,0,0,0.12)",
+        }}
+      >
+        {apiMsg && (
+          <div
+            style={{
+              color: "red",
+              marginBottom: 12,
+              textAlign: "center",
+            }}
+          >
+            {apiMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} noValidate>
           <label style={{ fontWeight: 600 }}>Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={inputStyle}
+          />
 
           <label style={labelStyle}>Business Email</label>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...inputStyle, borderColor: emailError ? "red" : "#ccc" }} />
-          {emailError && <div style={errorText}>{emailError}</div>}
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{
+              ...inputStyle,
+              borderColor: emailError ? "red" : "#ccc",
+            }}
+          />
+          {emailError && (
+            <div style={errorText}>{emailError}</div>
+          )}
 
           <label style={labelStyle}>Phone</label>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} style={{ ...inputStyle, borderColor: phoneError ? "red" : "#ccc" }} />
-          {phoneError && <div style={errorText}>{phoneError}</div>}
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            style={{
+              ...inputStyle,
+              borderColor: phoneError ? "red" : "#ccc",
+            }}
+          />
+          {phoneError && (
+            <div style={errorText}>{phoneError}</div>
+          )}
 
           <label style={labelStyle}>Status</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} style={inputStyle}>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            style={inputStyle}
+          >
             <option value="new">New</option>
             <option value="contacted">Contacted</option>
             <option value="followup">Follow Up</option>
@@ -153,18 +233,53 @@ export default function LeadForm() {
           </select>
 
           <label style={labelStyle}>Assigned To</label>
-          <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={inputStyle}>
+          <select
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
+            style={inputStyle}
+          >
             <option value="">Unassigned</option>
-            {salesAgents.map(agent => (
-              <option key={agent._id} value={agent._id}>{agent.email}</option>
+            {salesAgents.map((agent) => (
+              <option key={agent._id} value={agent._id}>
+                {agent.email}
+              </option>
             ))}
           </select>
 
           <label style={labelStyle}>Source</label>
-          <input value={source} onChange={(e) => setSource(e.target.value)} style={inputStyle} />
+          <input
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            style={inputStyle}
+          />
 
-          <button type="submit" disabled={!isFormValid() || loading} style={{ width: "100%", marginTop: 25, padding: "12px 0", background: "linear-gradient(90deg,#0d1b4c,#1f3a93,#6f4aff)", color: "white", borderRadius: 30, fontSize: 18, fontWeight: 600, border: "none", cursor: isFormValid() ? "pointer" : "not-allowed", opacity: isFormValid() ? 1 : 0.6 }}>
-            {isEdit ? loading ? "Saving..." : "Save Changes" : loading ? "Adding..." : "Submit"}
+          <button
+            type="submit"
+            disabled={!isFormValid() || loading}
+            style={{
+              width: "100%",
+              marginTop: 25,
+              padding: "12px 0",
+              background:
+                "linear-gradient(90deg,#0d1b4c,#1f3a93,#6f4aff)",
+              color: "white",
+              borderRadius: 30,
+              fontSize: 18,
+              fontWeight: 600,
+              border: "none",
+              cursor: isFormValid()
+                ? "pointer"
+                : "not-allowed",
+              opacity: isFormValid() ? 1 : 0.6,
+            }}
+          >
+            {isEdit
+              ? loading
+                ? "Saving..."
+                : "Save Changes"
+              : loading
+              ? "Adding..."
+              : "Submit"}
           </button>
         </form>
       </div>
@@ -172,6 +287,26 @@ export default function LeadForm() {
   );
 }
 
-const inputStyle = { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid #ccc", marginBottom: 18, fontSize: 15 };
-const labelStyle = { fontWeight: 600, marginBottom: 5, display: "block" };
-const errorText = { color: "red", fontSize: 12, marginTop: -10, marginBottom: 14 };
+/* ================= CSS SAME ================= */
+
+const inputStyle = {
+  width: "100%",
+  padding: "12px 14px",
+  borderRadius: 8,
+  border: "1px solid #ccc",
+  marginBottom: 18,
+  fontSize: 15,
+};
+
+const labelStyle = {
+  fontWeight: 600,
+  marginBottom: 5,
+  display: "block",
+};
+
+const errorText = {
+  color: "red",
+  fontSize: 12,
+  marginTop: -10,
+  marginBottom: 14,
+};

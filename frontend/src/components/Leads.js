@@ -13,19 +13,25 @@ export default function Leads() {
   const [selectedLeadId, setSelectedLeadId] = useState(null);
 
   const navigate = useNavigate();
-
   const token = localStorage.getItem("token");
 
-  const API =
-    process.env.REACT_APP_API_URL || "http://localhost:5000/api/leads";
+  // ✅ SAFE BASE URL (Local + Production)
+  const BASE_URL =
+    process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  const user = token ? JSON.parse(atob(token.split(".")[1])) : null;
+  const API = `${BASE_URL}/api/leads`;
+
+  let user = null;
+  try {
+    user = token ? JSON.parse(atob(token.split(".")[1])) : null;
+  } catch {
+    user = null;
+  }
 
   /* ✅ ROLE LOGIC */
   const role = user?.role;
   const isAdmin = role === "admin";
   const isManager = role === "sales_manager";
-  const isSalesAgent = role === "sales_agent";
 
   const canEdit = isAdmin || isManager;
   const canDelete = isAdmin;
@@ -225,7 +231,6 @@ export default function Leads() {
         </table>
       </div>
 
-      {/* DELETE POPUP */}
       {canDelete && (
         <DeletePopup
           open={showDeletePopup}

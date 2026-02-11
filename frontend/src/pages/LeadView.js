@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -6,6 +6,7 @@ import { FaPhoneAlt, FaWhatsapp, FaEnvelope, FaSms } from "react-icons/fa";
 
 export default function LeadView() {
   const { id } = useParams();
+
   const [lead, setLead] = useState(null);
   const [activities, setActivities] = useState([]);
   const [activityType, setActivityType] = useState("call");
@@ -15,31 +16,50 @@ export default function LeadView() {
   const [nextFollowUpDate, setNextFollowUpDate] = useState("");
 
   const token = localStorage.getItem("token");
-  const authConfig = { headers: { Authorization: `Bearer ${token}` } };
 
+  // ✅ Production Base URL
+  const BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+
+  const authConfig = useMemo(
+    () => ({
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+    [token]
+  );
+
+  /* =========================
+     LOAD DATA
+  ========================= */
   useEffect(() => {
     axios
-      .get(`http://localhost:5000/api/leads/${id}`, authConfig)
+      .get(`${BASE_URL}/api/leads/${id}`, authConfig)
       .then((res) => setLead(res.data))
       .catch(() => toast.error("Failed to load lead"));
 
     axios
-      .get(`http://localhost:5000/api/activities/${id}`, authConfig)
+      .get(`${BASE_URL}/api/activities/${id}`, authConfig)
       .then((res) => setActivities(res.data))
       .catch(() => toast.error("Failed to load activities"));
-  }, [id]);
+  }, [id, BASE_URL, authConfig]);
 
+  /* =========================
+     ADD ACTIVITY
+  ========================= */
   const handleAddActivity = async () => {
     if (!activityDateTime || !outcome || !notes.trim()) {
       toast.error("Fill required fields");
       return;
     }
+
     try {
       const res = await axios.post(
-        `http://localhost:5000/api/activities/${id}`,
+        `${BASE_URL}/api/activities/${id}`,
         { activityType, activityDateTime, outcome, notes, nextFollowUpDate },
         authConfig
       );
+
       setActivities([res.data, ...activities]);
       setOutcome("");
       setNotes("");
@@ -50,82 +70,95 @@ export default function LeadView() {
     }
   };
 
-  if (!lead) return <div>Loading...</div>;
+  if (!lead) return <div style={{ padding: 40 }}>Loading...</div>;
 
   const cleanNumber = lead.phone.replace(/\D/g, "");
   const today = new Date();
 
-  const handleCallClick = () => {
-    navigator.clipboard.writeText(lead.phone);
-    toast.success("Number copied ✔");
-    window.location.href = `tel:${lead.phone}`;
-  };
-  const handleSmsClick = () => {
-    navigator.clipboard.writeText(lead.phone);
-    toast.success("Number copied ✔");
-    window.location.href = `sms:${lead.phone}`;
-  };
-
   const getFollowUpStatus = (dateStr) => {
     if (!dateStr) return { label: "", color: "#ccc" };
     const d = new Date(dateStr);
-    const diff = d.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
-    if (diff === 0) return { label: "Today", color: "#ffc107" }; // yellow
-    if (diff > 0) return { label: "Upcoming", color: "#17a2b8" }; // blue
-    return { label: "Past", color: "#6c757d" }; // gray
+    const diff =
+      d.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
+
+    if (diff === 0)
+      return { label: "Today", color: "#ffc107" };
+    if (diff > 0)
+      return { label: "Upcoming", color: "#17a2b8" };
+    return { label: "Past", color: "#6c757d" };
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        {/* LEAD HEADER */}
+        {/* HEADER */}
         <div style={styles.header}>
           <h2 style={styles.name}>{lead.name}</h2>
+
           <div style={styles.contactButtons}>
-            <button onClick={handleCallClick} style={styles.iconBtn}>
+            <button
+              onClick={() =>
+                (window.location.href = `tel:${lead.phone}`)
+              }
+              style={styles.iconBtn}
+            >
               <FaPhoneAlt />
             </button>
-            <button onClick={handleSmsClick} style={styles.iconBtn}>
+
+            <button
+              onClick={() =>
+                (window.location.href = `sms:${lead.phone}`)
+              }
+              style={styles.iconBtn}
+            >
               <FaSms />
             </button>
-            <a href={`mailto:${lead.email}`} style={styles.iconBtn}>
+
+            <a
+              href={`mailto:${lead.email}`}
+              style={styles.iconBtn}
+            >
               <FaEnvelope />
             </a>
+
             <a
               href={`https://wa.me/${cleanNumber}`}
               target="_blank"
               rel="noreferrer"
-              style={{ ...styles.iconBtn, backgroundColor: "#25D366" }}
+              style={{
+                ...styles.iconBtn,
+                backgroundColor: "#25D366",
+                color: "white",
+              }}
             >
               <FaWhatsapp />
             </a>
           </div>
         </div>
 
+        {/* DETAILS */}
         <div style={styles.details}>
-          <p>
-            <b>Email:</b> {lead.email}
-          </p>
-          <p>
-            <b>Phone:</b> {lead.phone}
-          </p>
+          <p><b>Email:</b> {lead.email}</p>
+          <p><b>Phone:</b> {lead.phone}</p>
           <p>
             <b>Status:</b>{" "}
-            <span style={{ ...styles.status }}>{lead.status}</span>
+            <span style={styles.status}>{lead.status}</span>
           </p>
           <p>
-            <b>Assigned To:</b> {lead.assignedTo?.email || "Unassigned"}
+            <b>Assigned To:</b>{" "}
+            {lead.assignedTo?.email || "Unassigned"}
           </p>
         </div>
 
-        {/* ADD ACTIVITY FORM */}
+        {/* ADD ACTIVITY */}
         <div style={styles.card}>
           <h3 style={{ marginBottom: 15 }}>Add Activity</h3>
 
-          <label style={styles.label}>Activity Type</label>
           <select
             value={activityType}
-            onChange={(e) => setActivityType(e.target.value)}
+            onChange={(e) =>
+              setActivityType(e.target.value)
+            }
             style={styles.input}
           >
             <option value="call">Call</option>
@@ -134,15 +167,15 @@ export default function LeadView() {
             <option value="meeting">Meeting</option>
           </select>
 
-          <label style={styles.label}>Activity Date & Time</label>
           <input
             type="datetime-local"
             value={activityDateTime}
-            onChange={(e) => setActivityDateTime(e.target.value)}
+            onChange={(e) =>
+              setActivityDateTime(e.target.value)
+            }
             style={styles.input}
           />
 
-          <label style={styles.label}>Result</label>
           <select
             value={outcome}
             onChange={(e) => setOutcome(e.target.value)}
@@ -155,7 +188,6 @@ export default function LeadView() {
             <option>Switch Off</option>
           </select>
 
-          <label style={styles.label}>Notes</label>
           <textarea
             placeholder="Notes"
             value={notes}
@@ -163,32 +195,43 @@ export default function LeadView() {
             style={styles.input}
           />
 
-          <label style={styles.label}>Next Follow-Up Date</label>
           <input
             type="date"
             value={nextFollowUpDate}
-            onChange={(e) => setNextFollowUpDate(e.target.value)}
+            onChange={(e) =>
+              setNextFollowUpDate(e.target.value)
+            }
             style={styles.input}
           />
 
-          <button onClick={handleAddActivity} style={styles.button}>
+          <button
+            onClick={handleAddActivity}
+            style={styles.button}
+          >
             Add Activity
           </button>
         </div>
 
-        {/* ACTIVITY TIMELINE */}
-        <div style={{ marginTop: 25 }}>
+        {/* TIMELINE */}
+        <div style={{ marginTop: 30 }}>
           <h3>Activity Timeline</h3>
+
           {activities.length === 0 ? (
             <p>No activities yet</p>
           ) : (
             activities.map((a) => {
-              const followUp = getFollowUpStatus(a.nextFollowUpDate);
+              const followUp = getFollowUpStatus(
+                a.nextFollowUpDate
+              );
+
               return (
                 <div key={a._id} style={styles.timeline}>
                   <div style={styles.timelineHeader}>
-                    <b style={{ textTransform: "capitalize" }}>{a.activityType}</b>{" "}
+                    <b style={{ textTransform: "capitalize" }}>
+                      {a.activityType}
+                    </b>{" "}
                     — {a.outcome}
+
                     {a.nextFollowUpDate && (
                       <span
                         style={{
@@ -196,13 +239,20 @@ export default function LeadView() {
                           backgroundColor: followUp.color,
                         }}
                       >
-                        {followUp.label}: {new Date(a.nextFollowUpDate).toLocaleDateString()}
+                        {followUp.label}:{" "}
+                        {new Date(
+                          a.nextFollowUpDate
+                        ).toLocaleDateString()}
                       </span>
                     )}
                   </div>
+
                   <p>{a.notes}</p>
+
                   <div style={styles.time}>
-                    {new Date(a.activityDateTime).toLocaleString()}
+                    {new Date(
+                      a.activityDateTime
+                    ).toLocaleString()}
                   </div>
                 </div>
               );
@@ -214,83 +264,106 @@ export default function LeadView() {
   );
 }
 
-/* ===== STYLES ===== */
+/* =========================
+   CSS STYLES
+========================= */
 const styles = {
   page: {
-    padding: "10px",
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    backgroundColor: "#f4f6f9",
+    padding: "20px",
+    background: "#f4f6f9",
     minHeight: "100vh",
   },
+
   container: {
     maxWidth: "1000px",
-    margin: "0 auto",
-    backgroundColor: "#fff",
-    padding: "25px",
+    margin: "auto",
+    background: "white",
+    padding: "30px",
     borderRadius: "12px",
-    boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
   },
+
   header: {
     display: "flex",
     flexDirection: "column",
     gap: "10px",
-    marginBottom: "15px",
+    marginBottom: "20px",
   },
-  name: { fontSize: "28px", fontWeight: 600, margin: 0 },
-  contactButtons: { display: "flex", gap: "10px", flexWrap: "wrap" },
+
+  name: {
+    fontSize: "28px",
+    fontWeight: "600",
+  },
+
+  contactButtons: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
+
   iconBtn: {
     padding: "10px",
     borderRadius: "50%",
     border: "none",
     cursor: "pointer",
-    backgroundColor: "#eee",
+    backgroundColor: "#e9ecef",
     fontSize: "16px",
   },
-  details: { fontSize: "16px", marginBottom: "20px", lineHeight: 1.5 },
+
+  details: {
+    fontSize: "15px",
+    marginBottom: "25px",
+    lineHeight: 1.6,
+  },
+
   status: {
     padding: "4px 10px",
     borderRadius: "6px",
-    backgroundColor: "#e0e0e0",
+    backgroundColor: "#e2e6ea",
     fontWeight: 500,
-    fontSize: "14px",
+    fontSize: "13px",
   },
-  card: { backgroundColor: "#f7f9fb", padding: "20px", borderRadius: "10px" },
-  label: { fontWeight: 500, marginBottom: 5, display: "block", fontSize: 14 },
+
+  card: {
+    backgroundColor: "#f8f9fa",
+    padding: "20px",
+    borderRadius: "10px",
+  },
+
   input: {
     width: "100%",
     padding: "10px",
     marginBottom: "12px",
     borderRadius: "6px",
     border: "1px solid #ccc",
-    fontSize: "15px",
-    fontFamily: "inherit",
-    boxSizing: "border-box",
+    fontSize: "14px",
   },
+
   button: {
     padding: "10px 15px",
     borderRadius: "6px",
     border: "none",
     backgroundColor: "#007bff",
-    color: "#fff",
+    color: "white",
     cursor: "pointer",
-    fontSize: "15px",
     fontWeight: 500,
   },
+
   timeline: {
     backgroundColor: "#f5f5f5",
     padding: "14px",
     borderRadius: "8px",
     marginBottom: "12px",
-    fontSize: "15px",
   },
+
   timelineHeader: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "6px",
     flexWrap: "wrap",
     gap: "10px",
+    marginBottom: "6px",
   },
+
   followUpLabel: {
     padding: "3px 8px",
     borderRadius: "6px",
@@ -298,5 +371,10 @@ const styles = {
     color: "#fff",
     fontWeight: 500,
   },
-  time: { fontSize: "12px", color: "#555", marginTop: "5px" },
+
+  time: {
+    fontSize: "12px",
+    color: "#555",
+    marginTop: "5px",
+  },
 };

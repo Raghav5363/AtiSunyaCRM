@@ -25,35 +25,42 @@ export default function Reports() {
 
   const token = localStorage.getItem("token");
 
-  const API =
-    process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+  // ✅ Production Base URL
+  const BASE_URL = process.env.REACT_APP_API_URL;
 
-  // ✅ FIX: wrap in useCallback
+  /* =========================
+     FETCH MONTHLY STATS
+  ========================= */
   const fetchMonthly = useCallback(async () => {
     try {
       const res = await axios.get(
-        `${API}/leads/stats/monthly`,
+        `${BASE_URL}/api/leads/stats/monthly`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMonthly(res.data);
     } catch (err) {
       console.log(err);
     }
-  }, [API, token]);
+  }, [BASE_URL, token]);
 
+  /* =========================
+     FETCH TEAM STATS
+  ========================= */
   const fetchTeam = useCallback(async () => {
     try {
       const res = await axios.get(
-        `${API}/leads/stats/team`,
+        `${BASE_URL}/api/leads/stats/team`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setTeam(res.data);
     } catch (err) {
       console.log(err);
     }
-  }, [API, token]);
+  }, [BASE_URL, token]);
 
-  // ✅ dependency fixed
+  /* =========================
+     LOAD DATA
+  ========================= */
   useEffect(() => {
     fetchMonthly();
     fetchTeam();

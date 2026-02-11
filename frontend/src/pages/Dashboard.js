@@ -28,10 +28,11 @@ export default function Dashboard() {
 
   const token = localStorage.getItem("token");
 
-  const API =
-    process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+  // ✅ Clean Base URL (Local + Production Safe)
+  const BASE_URL =
+    process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  // ✅ Safe token parsing
+  // ✅ Safe token decode
   let user = null;
   try {
     user = token ? JSON.parse(atob(token.split(".")[1])) : null;
@@ -45,7 +46,7 @@ export default function Dashboard() {
       if (!token) return;
 
       const res = await axios.get(
-        `${API}/leads/stats/summary`,
+        `${BASE_URL}/api/leads/stats/summary`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -53,7 +54,7 @@ export default function Dashboard() {
     } catch (err) {
       console.log(err);
     }
-  }, [API, token]);
+  }, [BASE_URL, token]);
 
   /* ================= FETCH MONTHLY ================= */
   const fetchMonthly = useCallback(async () => {
@@ -61,7 +62,7 @@ export default function Dashboard() {
       if (!token) return;
 
       const res = await axios.get(
-        `${API}/leads/stats/monthly`,
+        `${BASE_URL}/api/leads/stats/monthly`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -69,32 +70,12 @@ export default function Dashboard() {
     } catch (err) {
       console.log(err);
     }
-  }, [API, token]);
+  }, [BASE_URL, token]);
 
-  // ✅ Fixed dependency error
   useEffect(() => {
     fetchStats();
     fetchMonthly();
   }, [fetchStats, fetchMonthly]);
-
-  /* ================= CARD ================= */
-  const Card = ({ title, value }) => (
-    <div
-      style={{
-        background: "white",
-        padding: 25,
-        borderRadius: 12,
-        width: 230,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-        textAlign: "center",
-      }}
-    >
-      <h3>{title}</h3>
-      <div style={{ fontSize: 32, fontWeight: "bold", marginTop: 10 }}>
-        {value || 0}
-      </div>
-    </div>
-  );
 
   /* ================= PIE CHART ================= */
   const pieData = {
@@ -118,45 +99,33 @@ export default function Dashboard() {
       {
         label: "Leads",
         data: monthly.map((m) => m.count),
-        backgroundColor: "#2980b9",
+        backgroundColor: "#2563eb",
       },
     ],
   };
 
   return (
-    <div style={{ padding: 30 }}>
-      <h2>CRM Dashboard ({user?.role || "User"})</h2>
+    <div style={styles.wrapper}>
+      <h2 style={styles.heading}>
+        CRM Dashboard ({user?.role || "User"})
+      </h2>
 
-      {/* ================= STATS ================= */}
-      <div
-        style={{
-          display: "flex",
-          gap: 25,
-          marginTop: 30,
-          flexWrap: "wrap",
-        }}
-      >
-        <Card title="Total Leads" value={stats.total} />
-        <Card title="New Leads" value={stats.new} />
-        <Card title="Follow Ups" value={stats.followup} />
-        <Card title="Converted" value={stats.converted} />
+      {/* ================= CARDS ================= */}
+      <div style={styles.cardContainer}>
+        <StatCard title="Total Leads" value={stats.total} />
+        <StatCard title="New Leads" value={stats.new} />
+        <StatCard title="Follow Ups" value={stats.followup} />
+        <StatCard title="Converted" value={stats.converted} />
       </div>
 
       {/* ================= CHARTS ================= */}
-      <div
-        style={{
-          display: "flex",
-          gap: 50,
-          marginTop: 50,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ width: 350 }}>
+      <div style={styles.chartContainer}>
+        <div style={styles.chartBox}>
           <h3>Status Distribution</h3>
           <Pie data={pieData} />
         </div>
 
-        <div style={{ width: 500 }}>
+        <div style={styles.chartBoxLarge}>
           <h3>Monthly Leads</h3>
           <Bar data={barData} />
         </div>
@@ -164,3 +133,75 @@ export default function Dashboard() {
     </div>
   );
 }
+
+/* ================= STAT CARD COMPONENT ================= */
+function StatCard({ title, value }) {
+  return (
+    <div style={styles.card}>
+      <h4 style={{ margin: 0 }}>{title}</h4>
+      <div style={styles.cardValue}>{value || 0}</div>
+    </div>
+  );
+}
+
+/* ================= CSS ================= */
+
+const styles = {
+  wrapper: {
+    padding: "30px",
+    background: "#f4f6f9",
+    minHeight: "100vh",
+  },
+
+  heading: {
+    fontSize: "24px",
+    fontWeight: 600,
+  },
+
+  cardContainer: {
+    display: "flex",
+    gap: 25,
+    marginTop: 30,
+    flexWrap: "wrap",
+  },
+
+  card: {
+    background: "white",
+    padding: 25,
+    borderRadius: 12,
+    width: 230,
+    boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+    textAlign: "center",
+    transition: "transform 0.2s ease",
+  },
+
+  cardValue: {
+    fontSize: 32,
+    fontWeight: "bold",
+    marginTop: 10,
+    color: "#0f172a",
+  },
+
+  chartContainer: {
+    display: "flex",
+    gap: 50,
+    marginTop: 50,
+    flexWrap: "wrap",
+  },
+
+  chartBox: {
+    width: 350,
+    background: "white",
+    padding: 20,
+    borderRadius: 12,
+    boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+  },
+
+  chartBoxLarge: {
+    width: 500,
+    background: "white",
+    padding: 20,
+    borderRadius: 12,
+    boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+  },
+};

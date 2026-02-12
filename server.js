@@ -22,10 +22,14 @@ console.log("MONGO_URI from ENV:", process.env.MONGO_URI);
 ========================= */
 app.use(
   cors({
-    origin: "*", // allow all for now (deployment ke baad restrict karenge)
+    origin: [
+      "http://localhost:3000",
+      "https://ati-sunya-crm-custom.vercel.app/"
+    ],
     credentials: true,
   })
 );
+
 
 app.use(express.json());
 

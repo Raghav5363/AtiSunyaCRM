@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 
+const BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000";
+
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,14 +25,19 @@ function Login() {
 
     try {
       const res = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/auth/login`, 
+        `${BASE_URL}/api/auth/login`,
         {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
 
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Login failed");
+      }
 
       if (data.token) {
         localStorage.clear();
@@ -37,11 +45,9 @@ function Login() {
         localStorage.setItem("role", data.role);
         localStorage.setItem("userId", data.id);
         window.location.href = "/";
-      } else {
-        setError(data.message || "Invalid credentials");
       }
-    } catch {
-      setError("Server error");
+    } catch (err) {
+      setError(err.message || "Server error");
     }
 
     setLoading(false);
@@ -49,7 +55,6 @@ function Login() {
 
   return (
     <div style={styles.page}>
-      {/* TOPBAR */}
       <div style={styles.topbar}>
         <img src="InfratechLogo.png" alt="logo" style={styles.logo} />
       </div>
@@ -60,7 +65,6 @@ function Login() {
           flexDirection: isMobile ? "column" : "row",
         }}
       >
-        {/* LEFT SIDE */}
         {!isMobile && (
           <div style={styles.left}>
             <h1 style={styles.heading}>
@@ -81,7 +85,6 @@ function Login() {
           </div>
         )}
 
-        {/* RIGHT SIDE LOGIN */}
         <div style={styles.right}>
           <div
             style={{
@@ -107,9 +110,7 @@ function Login() {
                 type="email"
                 placeholder="name@company.com"
                 value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 style={styles.input}
               />
@@ -121,9 +122,7 @@ function Login() {
                 type="password"
                 placeholder="Enter password"
                 value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 style={styles.input}
               />
@@ -135,9 +134,7 @@ function Login() {
                   opacity: loading ? 0.7 : 1,
                 }}
               >
-                {loading
-                  ? "Signing in..."
-                  : "Sign In"}
+                {loading ? "Signing in..." : "Sign In"}
               </button>
             </form>
 
@@ -151,13 +148,14 @@ function Login() {
   );
 }
 
+/* ---- SAME CSS ---- */
+
 const styles = {
   page: {
     height: "100vh",
     fontFamily: "Inter, Segoe UI, sans-serif",
     background: "#f1f5f9",
   },
-
   topbar: {
     height: 65,
     display: "flex",
@@ -166,17 +164,11 @@ const styles = {
     background: "#ffffff",
     borderBottom: "1px solid #e5e7eb",
   },
-
-  logo: {
-    height: 45,
-  },
-
+  logo: { height: 45 },
   container: {
     display: "flex",
     height: "calc(100vh - 65px)",
   },
-
-  /* LEFT */
   left: {
     flex: 1,
     padding: "80px",
@@ -185,14 +177,12 @@ const styles = {
     flexDirection: "column",
     justifyContent: "center",
   },
-
   heading: {
     fontSize: 42,
     fontWeight: 700,
     color: "#0f172a",
     marginBottom: 20,
   },
-
   text: {
     fontSize: 16,
     color: "#475569",
@@ -200,47 +190,30 @@ const styles = {
     lineHeight: 1.6,
     marginBottom: 40,
   },
-
   image: {
     width: 420,
     borderRadius: 14,
-    boxShadow:
-      "0 10px 30px rgba(0,0,0,0.08)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
   },
-
-  /* RIGHT */
   right: {
     flex: 1,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
   },
-
   card: {
     background: "#ffffff",
     borderRadius: 14,
-    boxShadow:
-      "0 20px 40px rgba(0,0,0,0.06)",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.06)",
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: 600,
-    marginBottom: 8,
-  },
-
-  subtitle: {
-    color: "#64748b",
-    marginBottom: 25,
-  },
-
+  title: { fontSize: 26, fontWeight: 600, marginBottom: 8 },
+  subtitle: { color: "#64748b", marginBottom: 25 },
   label: {
     fontSize: 14,
     fontWeight: 600,
     display: "block",
     marginBottom: 6,
   },
-
   input: {
     width: "100%",
     padding: 13,
@@ -249,7 +222,6 @@ const styles = {
     marginBottom: 18,
     fontSize: 14,
   },
-
   button: {
     width: "100%",
     padding: 14,
@@ -262,7 +234,6 @@ const styles = {
     fontSize: 15,
     marginTop: 10,
   },
-
   error: {
     background: "#fef2f2",
     color: "#dc2626",
@@ -270,7 +241,6 @@ const styles = {
     borderRadius: 8,
     marginBottom: 15,
   },
-
   footer: {
     textAlign: "center",
     marginTop: 25,

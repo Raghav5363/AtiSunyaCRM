@@ -51,7 +51,7 @@ function Login() {
     <div style={styles.page}>
       {/* TOPBAR */}
       <div style={styles.topbar}>
-        <img src="infratechLogo.png" alt="logo" style={styles.logo} />
+        <img src="InfratechLogo.png" alt="logo" style={styles.logo} />
       </div>
 
       <div

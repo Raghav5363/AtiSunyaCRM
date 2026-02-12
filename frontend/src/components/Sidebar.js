@@ -5,6 +5,9 @@ import { toast } from "react-toastify";
 
 const SIDEBAR_WIDTH = 240;
 
+const BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000";
+
 export default function Sidebar({ isOpen, setIsOpen }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -42,9 +45,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
     try {
       await axios.post(
-        "http://localhost:5000/api/leads/bulk-upload",
+        `${BASE_URL}/api/leads/bulk-upload`,
         formData,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       toast.success("CSV Uploaded Successfully");
@@ -153,7 +160,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           })}
 
           {/* ===== CSV UPLOAD ===== */}
-          {(user?.role === "admin" || user?.role === "sales_manager") && (
+          {(user?.role === "admin" ||
+            user?.role === "sales_manager") && (
             <div
               onClick={() => fileInputRef.current.click()}
               style={{

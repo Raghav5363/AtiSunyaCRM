@@ -24,11 +24,13 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://ati-sunya-crm-custom.vercel.app/"
+      "https://ati-sunya-crm-custom.vercel.app",
     ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
+
 
 
 app.use(express.json());

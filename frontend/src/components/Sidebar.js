@@ -124,7 +124,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           {/* ===== LOGO ===== */}
           <div style={{ textAlign: "center", marginBottom: 30 }}>
             <img
-              src="/infratechLogo.png"
+              src="/InfratechLogo.png"
               alt="logo"
               style={{ width: 140 }}
             />

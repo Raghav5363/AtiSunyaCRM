@@ -8,14 +8,12 @@ export default function Leads() {
   const [leads, setLeads] = useState([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState(null);
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  // ✅ SAFE BASE URL (Local + Production)
   const BASE_URL =
     process.env.REACT_APP_API_URL || "http://localhost:5000";
 
@@ -28,7 +26,6 @@ export default function Leads() {
     user = null;
   }
 
-  /* ✅ ROLE LOGIC */
   const role = user?.role;
   const isAdmin = role === "admin";
   const isManager = role === "sales_manager";
@@ -155,12 +152,8 @@ export default function Leads() {
               <th style={{ padding: 12 }}>Phone</th>
               <th style={{ padding: 12 }}>Status</th>
               <th style={{ padding: 12 }}>Assigned To</th>
-
-              {(isAdmin || isManager) ? (
-                <th style={{ padding: 12 }}>Actions</th>
-              ) : (
-                <th style={{ padding: 12 }}>Source</th>
-              )}
+              <th style={{ padding: 12 }}>Created By</th>
+              <th style={{ padding: 12 }}>Actions</th>
             </tr>
           </thead>
 
@@ -190,41 +183,53 @@ export default function Leads() {
                   {lead.assignedTo?.email || "Unassigned"}
                 </td>
 
-                {(isAdmin || isManager) ? (
-                  <td style={{ padding: 12 }}>
-                    {canEdit && (
-                      <button
-                        style={{
-                          padding: "6px 10px",
-                          borderRadius: 6,
-                          border: "1px solid #ccc",
-                          marginRight: 8,
-                        }}
-                        onClick={() => navigate(`/edit/${lead._id}`)}
-                      >
-                        Edit
-                      </button>
-                    )}
+                <td style={{ padding: 12 }}>
+                  {lead.createdBy?.email || "N/A"}
+                  {lead.createdBy?.role && (
+                    <span
+                      style={{
+                        marginLeft: 6,
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                        fontSize: 11,
+                        background: "#eef2ff",
+                        color: "#4338ca",
+                      }}
+                    >
+                      {lead.createdBy.role}
+                    </span>
+                  )}
+                </td>
 
-                    {canDelete && (
-                      <button
-                        style={{
-                          padding: "6px 10px",
-                          borderRadius: 6,
-                          border: "1px solid red",
-                          color: "red",
-                        }}
-                        onClick={() => handleDeleteClick(lead._id)}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                ) : (
-                  <td style={{ padding: 12 }}>
-                    {lead.source || "-"}
-                  </td>
-                )}
+                <td style={{ padding: 12 }}>
+                  {canEdit && (
+                    <button
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: "1px solid #ccc",
+                        marginRight: 8,
+                      }}
+                      onClick={() => navigate(`/edit/${lead._id}`)}
+                    >
+                      Edit
+                    </button>
+                  )}
+
+                  {canDelete && (
+                    <button
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: "1px solid red",
+                        color: "red",
+                      }}
+                      onClick={() => handleDeleteClick(lead._id)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -30,15 +30,22 @@ const leadSchema = new mongoose.Schema(
       default: "",
     },
 
+    // 🔥 NEW FIELD (Lead Creator)
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
 
-    // =========================
-    // ACTIVITIES (FIXED)
-    // =========================
+    /* =========================
+       ACTIVITIES
+    ========================= */
     activities: [
       {
         activityType: {
@@ -80,7 +87,6 @@ const leadSchema = new mongoose.Schema(
       },
     ],
 
-    // Lead-level follow-up (derived from activities)
     nextFollowUpDate: {
       type: Date,
       default: null,

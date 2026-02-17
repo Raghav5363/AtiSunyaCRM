@@ -48,39 +48,44 @@ export default function FollowUps() {
 
   /* ================= RENDER LIST ================= */
   const renderList = (list, isOverdue = false) =>
-    list.length > 0 ? (
-      list.map((item) => (
-        <div
-          key={item._id}
-          onClick={() => navigate(`/lead/${item.leadId?._id}`)}
-          style={{
-            ...styles.card,
-            borderLeft: isOverdue
-              ? "4px solid #dc2626"
-              : "4px solid #0d6efd",
-          }}
-        >
-          <div style={styles.name}>
-            {item.leadId?.name || "Unknown"}
-          </div>
-
-          <div style={styles.phone}>
-            📞 {item.leadId?.phone || "-"}
-          </div>
-
-          <div style={styles.date}>
-            📅{" "}
-            {item.nextFollowUpDate
-              ? new Date(
-                  item.nextFollowUpDate
-                ).toLocaleDateString()
-              : "-"}
-          </div>
+  list.length > 0 ? (
+    list.map((item) => (
+      <div
+        key={item._id}
+        onClick={() => {
+          if (item.leadId?._id) {
+            navigate(`/lead/${item.leadId._id}`);
+          } else {
+            toast.error("Lead not found");
+          }
+        }}
+        style={{
+          ...styles.card,
+          borderLeft: isOverdue
+            ? "4px solid #dc2626"
+            : "4px solid #0d6efd",
+        }}
+      >
+        <div style={styles.name}>
+          {item.leadId?.name || "Unknown Lead"}
         </div>
-      ))
-    ) : (
-      <div style={styles.empty}>No follow-ups</div>
-    );
+
+        <div style={styles.phone}>
+          📞 {item.leadId?.phone || "-"}
+        </div>
+
+        <div style={styles.date}>
+          📅{" "}
+          {item.nextFollowUpDate
+            ? new Date(item.nextFollowUpDate).toLocaleDateString()
+            : "-"}
+        </div>
+      </div>
+    ))
+  ) : (
+    <div style={styles.empty}>No follow-ups</div>
+  );
+
 
   return (
     <div style={styles.wrapper}>

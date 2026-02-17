@@ -1,0 +1,311 @@
+/* ================= BASE ================= */
+
+.dashboard {
+  min-height: 100vh;
+  padding: 30px;
+  font-family: "Segoe UI", sans-serif;
+  background: linear-gradient(135deg, #eef2ff, #f8fafc);
+  transition: background 0.4s ease, color 0.3s ease;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* PAGE FADE IN */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ================= DARK MODE ================= */
+
+.dashboard.dark {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: white;
+}
+
+/* ================= NAVBAR ================= */
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.dashboard.dark .navbar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-left: auto;
+}
+
+/* ================= ICONS ================= */
+
+.icon,
+.iconBtn {
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 8px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+}
+
+.icon:hover,
+.iconBtn:hover {
+  background: rgba(79, 70, 229, 0.1);
+  transform: translateY(-2px);
+}
+
+.iconBtn:hover {
+  transform: rotate(15deg);
+}
+
+/* ================= NOTIFICATION ================= */
+
+.notifyWrapper {
+  position: relative;
+}
+
+.notifyIcon {
+  position: relative;
+}
+
+.notifyBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 50%;
+  font-weight: 600;
+}
+
+.notifyDropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 260px;
+  background: white;
+  border-radius: 14px;
+  padding: 15px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
+  animation: fadeIn 0.25s ease;
+  z-index: 999;
+}
+
+.dashboard.dark .notifyDropdown {
+  background: #1e293b;
+  color: white;
+}
+
+.notifyHeader {
+  font-weight: 600;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.notifyItem {
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  transition: 0.2s ease;
+}
+
+.notifyItem:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+
+/* ================= PAGE TITLE ================= */
+
+.pageTitle {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dashboard.dark .pageTitle {
+  color: white;
+}
+
+/* ================= TABS ================= */
+
+.tabs {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.tab:hover {
+  background: rgba(79, 70, 229, 0.08);
+  transform: translateY(-3px);
+}
+
+.activeTab {
+  background: #4f46e5;
+  color: white;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+}
+
+/* ================= KPI GRID ================= */
+
+.kpiWrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 25px;
+}
+
+/* ================= KPI CARD ================= */
+
+.kpiCard {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 28px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.kpiCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard.dark .kpiCard {
+  background: rgba(30, 41, 59, 0.7);
+}
+
+.kpiCard h4 {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.kpiValue {
+  font-size: 32px;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+/* ================= CONTENT CARD ================= */
+
+.contentCard {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard.dark .contentCard {
+  background: rgba(30, 41, 59, 0.7);
+}
+
+.scheduleItem {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  transition: 0.2s ease;
+}
+
+.scheduleItem:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+
+/* ================= CHART SECTION ================= */
+
+.chartSection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 25px;
+}
+
+.chartCard {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 25px;
+  border-radius: 16px;
+  transition: 0.3s ease;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+}
+
+.chartCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard.dark .chartCard {
+  background: rgba(30, 41, 59, 0.7);
+}
+
+/* ================= MOBILE EXACT LAYOUT ================= */
+
+@media (max-width: 768px) {
+
+  .kpiWrapper {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px 20px;
+  }
+
+  .kpiCard {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .kpiValue {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 2px solid #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: auto;
+    font-size: 20px;
+    background: white;
+  }
+
+  .dashboard.dark .kpiValue {
+    background: #1e293b;
+    border: 2px solid #aaa;
+  }
+
+  .tabs {
+    gap: 10px;
+  }
+
+  .tab {
+    flex: 1;
+    flex-direction: column;
+    font-size: 12px;
+  }
+}

@@ -137,18 +137,37 @@ export default function LeadView() {
         </div>
 
         {/* DETAILS */}
-        <div style={styles.details}>
-          <p><b>Email:</b> {lead.email}</p>
-          <p><b>Phone:</b> {lead.phone}</p>
-          <p>
-            <b>Status:</b>{" "}
-            <span style={styles.status}>{lead.status}</span>
-          </p>
-          <p>
-            <b>Assigned To:</b>{" "}
-            {lead.assignedTo?.email || "Unassigned"}
-          </p>
-        </div>
+<div style={styles.details}>
+  <p><b>Email:</b> {lead.email}</p>
+  <p><b>Phone:</b> {lead.phone}</p>
+
+  <p>
+    <b>Status:</b>{" "}
+    <span style={styles.status}>{lead.status}</span>
+  </p>
+
+  <p>
+    <b>Assigned To:</b>{" "}
+    {lead.assignedTo?.email || "Unassigned"}
+  </p>
+
+  {/* 🔥 NEW FIELD */}
+  <p>
+    <b>Created By:</b>{" "}
+    {lead.createdBy?.email || "N/A"}{" "}
+    {lead.createdBy?.role && (
+      <span style={styles.roleBadge}>
+        {lead.createdBy.role}
+      </span>
+    )}
+  </p>
+
+  <p>
+    <b>Created On:</b>{" "}
+    {new Date(lead.createdAt).toLocaleDateString()}
+  </p>
+</div>
+
 
         {/* ADD ACTIVITY */}
         <div style={styles.card}>
@@ -323,6 +342,17 @@ const styles = {
     fontWeight: 500,
     fontSize: "13px",
   },
+
+  roleBadge: {
+  marginLeft: "8px",
+  padding: "3px 8px",
+  borderRadius: "12px",
+  fontSize: "11px",
+  backgroundColor: "#eef2ff",
+  color: "#4338ca",
+  fontWeight: 500,
+},
+
 
   card: {
     backgroundColor: "#f8f9fa",

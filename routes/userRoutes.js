@@ -7,6 +7,7 @@ const router = express.Router();
 
 /* =========================
    ADD USER (ADMIN ONLY)
+   MAX 10 USERS LIMIT
 ========================= */
 router.post("/", protect, allowRoles("admin"), async (req, res) => {
   try {
@@ -14,6 +15,14 @@ router.post("/", protect, allowRoles("admin"), async (req, res) => {
 
     if (!email || !password || !role) {
       return res.status(400).json({ message: "All fields required" });
+    }
+
+    // ✅ CHECK TOTAL USERS LIMIT
+    const totalUsers = await User.countDocuments();
+    if (totalUsers >= 10) {
+      return res.status(400).json({
+        message: "User limit reached (Maximum 10 users allowed)"
+      });
     }
 
     const exists = await User.findOne({ email });
@@ -33,7 +42,8 @@ router.post("/", protect, allowRoles("admin"), async (req, res) => {
       message: "User created",
       user,
     });
-  } catch {
+
+  } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
 });

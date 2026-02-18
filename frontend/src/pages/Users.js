@@ -12,12 +12,10 @@ export default function Users() {
   const token = localStorage.getItem("token");
   const currentRole = localStorage.getItem("role");
 
-  // ✅ Production API Base URL
-const BASE_URL =
-  process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const BASE_URL =
+    process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-const API = `${BASE_URL}/api/users`;
-
+  const API = `${BASE_URL}/api/users`;
 
   /* =========================
      FETCH USERS
@@ -28,14 +26,11 @@ const API = `${BASE_URL}/api/users`;
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(res.data);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load users");
     }
   }, [API, token]);
 
-  /* =========================
-     LOAD USERS (ADMIN ONLY)
-  ========================= */
   useEffect(() => {
     if (currentRole === "admin") {
       fetchUsers();
@@ -46,6 +41,9 @@ const API = `${BASE_URL}/api/users`;
      ADD USER
   ========================= */
   const addUser = async () => {
+    if (users.length >= 10)
+      return toast.error("Maximum 10 users allowed");
+
     if (!email || !password)
       return toast.error("Email & Password required");
 
@@ -88,7 +86,7 @@ const API = `${BASE_URL}/api/users`;
 
       toast.success("Deleted");
       fetchUsers();
-    } catch (err) {
+    } catch {
       toast.error("Delete failed");
     }
   };
@@ -106,14 +104,11 @@ const API = `${BASE_URL}/api/users`;
 
       toast.success("Role updated");
       fetchUsers();
-    } catch (err) {
+    } catch {
       toast.error("Update failed");
     }
   };
 
-  /* =========================
-     ADMIN CHECK
-  ========================= */
   if (currentRole !== "admin") {
     return (
       <div style={styles.noAccess}>
@@ -123,10 +118,17 @@ const API = `${BASE_URL}/api/users`;
     );
   }
 
+  const userLimitReached = users.length >= 10;
+
   return (
     <div style={styles.wrapper}>
       <div style={styles.card}>
         <h2>User Management</h2>
+
+        {/* USER COUNT DISPLAY */}
+        <p style={{ fontSize: 14, color: "#666", marginBottom: 15 }}>
+          Users: {users.length} / 10
+        </p>
 
         {/* ADD FORM */}
         <div style={styles.form}>
@@ -136,6 +138,7 @@ const API = `${BASE_URL}/api/users`;
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={styles.input}
+            disabled={userLimitReached}
           />
 
           <input
@@ -144,12 +147,14 @@ const API = `${BASE_URL}/api/users`;
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={styles.input}
+            disabled={userLimitReached}
           />
 
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
             style={styles.input}
+            disabled={userLimitReached}
           >
             <option value="sales_agent">Sales Agent</option>
             <option value="sales_manager">Sales Manager</option>
@@ -158,11 +163,25 @@ const API = `${BASE_URL}/api/users`;
 
           <button
             onClick={addUser}
-            disabled={loading}
-            style={styles.button}
+            disabled={loading || userLimitReached}
+            style={{
+              ...styles.button,
+              opacity: userLimitReached ? 0.6 : 1,
+              cursor: userLimitReached ? "not-allowed" : "pointer"
+            }}
           >
-            {loading ? "Adding..." : "Add User"}
+            {userLimitReached
+              ? "User Limit Reached"
+              : loading
+              ? "Adding..."
+              : "Add User"}
           </button>
+
+          {userLimitReached && (
+            <p style={{ color: "red", marginTop: 10 }}>
+              Maximum 10 users allowed.
+            </p>
+          )}
         </div>
 
         {/* USER LIST */}
@@ -235,7 +254,6 @@ const styles = {
     border: "none",
     background: "#0b2545",
     color: "white",
-    cursor: "pointer",
     fontWeight: 600,
   },
 

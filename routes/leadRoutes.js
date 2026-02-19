@@ -1,9 +1,99 @@
+console.log("✅ leadRoutes loaded");
+
 const express = require("express");
 const Lead = require("../models/lead");
 const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
 
+const multer = require("multer");
+const csv = require("csv-parser");
+const fs = require("fs");
+const path = require("path");
+
 const router = express.Router();
+
+/* =========================
+   MULTER CONFIG
+========================= */
+const upload = multer({
+  dest: path.join(__dirname, "../uploads"),
+});
+
+/* =====================================================
+   🚀 BULK CSV UPLOAD (KEEP THIS ABOVE /:id ROUTE)
+===================================================== */
+router.post(
+  "/bulk-upload",
+  protect,
+  allowRoles("admin", "sales_manager"),
+  upload.single("file"),
+  async (req, res) => {
+    console.log("🔥 BULK UPLOAD ROUTE HIT");
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const results = [];
+
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(req.file.path)
+          .pipe(csv())
+          .on("data", (data) => results.push(data))
+          .on("end", resolve)
+          .on("error", reject);
+      });
+
+      let inserted = 0;
+      let skipped = 0;
+
+      for (const row of results) {
+        if (!row.email) {
+          skipped++;
+          continue;
+        }
+
+        const existing = await Lead.findOne({ email: row.email });
+
+        if (existing) {
+          skipped++;
+          continue;
+        }
+
+        await Lead.create({
+          name: row.name,
+          email: row.email,
+          phone: row.phone,
+          status: row.status || "new",
+          source: row.source,
+          createdBy: req.user.id,
+          assignedTo: req.user.id,
+        });
+
+        inserted++;
+      }
+
+      // Always delete file after processing
+      fs.unlinkSync(req.file.path);
+
+      res.status(200).json({
+        message: "CSV upload completed",
+        inserted,
+        skipped,
+      });
+
+    } catch (err) {
+      console.error("CSV Upload Error:", err);
+
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+
+      res.status(500).json({ message: "CSV upload failed" });
+    }
+  }
+);
 
 /* =========================
    CREATE LEAD
@@ -22,7 +112,7 @@ router.post(
         phone,
         status,
         source,
-        createdBy: req.user.id,   // 🔥 THIS IS THE FIX
+        createdBy: req.user.id,
         assignedTo: assignedTo || req.user.id,
       });
 
@@ -33,14 +123,12 @@ router.post(
         .populate("createdBy", "email role");
 
       res.status(201).json(populatedLead);
-
     } catch (err) {
       console.log(err);
       res.status(400).json({ message: "Failed to create lead" });
     }
   }
 );
-
 
 /* =========================
    GET ALL LEADS
@@ -60,7 +148,7 @@ router.get("/", protect, async (req, res) => {
 
     const leads = await Lead.find(filter)
       .populate("assignedTo", "email role")
-      .populate("createdBy", "email role") // 🔥 added
+      .populate("createdBy", "email role")
       .sort({ createdAt: -1 });
 
     res.json(leads);
@@ -119,7 +207,7 @@ router.get("/stats/monthly", protect, async (req, res) => {
           count: { $sum: 1 },
         },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]);
 
     res.json(data);
@@ -155,7 +243,7 @@ router.get("/stats/team", protect, async (req, res) => {
         },
       },
       { $unwind: "$user" },
-      { $sort: { converted: -1 } }
+      { $sort: { converted: -1 } },
     ]);
 
     res.json(data);
@@ -166,13 +254,13 @@ router.get("/stats/team", protect, async (req, res) => {
 });
 
 /* =========================
-   GET SINGLE LEAD
+   GET SINGLE LEAD (KEEP BELOW BULK ROUTE)
 ========================= */
 router.get("/:id", protect, async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id)
       .populate("assignedTo", "email role")
-      .populate("createdBy", "email role"); // 🔥 added
+      .populate("createdBy", "email role");
 
     if (!lead) {
       return res.status(404).json({ message: "Lead not found" });

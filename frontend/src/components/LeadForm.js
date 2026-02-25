@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
-// ✅ SAFE BASE URL
+/* ================= SAFE BASE URL ================= */
 const BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000";
 
@@ -110,9 +110,7 @@ export default function LeadForm() {
     setApiMsg("");
 
     if (!isFormValid()) {
-      setApiMsg(
-        "Please fix validation errors before submitting."
-      );
+      setApiMsg("Please fix validation errors before submitting.");
       return;
     }
 
@@ -129,11 +127,7 @@ export default function LeadForm() {
       setLoading(true);
 
       if (isEdit) {
-        await axios.put(
-          `${API_URL}/${id}`,
-          payload,
-          authConfig()
-        );
+        await axios.put(`${API_URL}/${id}`, payload, authConfig());
         toast.success("Lead updated successfully ✔");
       } else {
         await axios.post(API_URL, payload, authConfig());
@@ -143,8 +137,7 @@ export default function LeadForm() {
       navigate("/");
     } catch (err) {
       setApiMsg(
-        err?.response?.data?.message ||
-          "Failed to save lead"
+        err?.response?.data?.message || "Failed to save lead"
       );
     } finally {
       setLoading(false);
@@ -152,161 +145,213 @@ export default function LeadForm() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background:
-          "linear-gradient(to bottom right, #d8c7ff, #f4e9ff)",
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 600,
-          background: "white",
-          borderRadius: 16,
-          padding: "32px 40px",
-          boxShadow: "0 4px 18px rgba(0,0,0,0.12)",
-        }}
-      >
-        {apiMsg && (
-          <div
-            style={{
-              color: "red",
-              marginBottom: 12,
-              textAlign: "center",
-            }}
-          >
-            {apiMsg}
-          </div>
-        )}
+    <div style={pageWrapper}>
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <h2 style={{ margin: 0 }}>
+            {isEdit ? "Edit Lead" : "Create Lead"}
+          </h2>
+          <p style={subText}>
+            Enter lead details below
+          </p>
+        </div>
+
+        {apiMsg && <div style={apiErrorStyle}>{apiMsg}</div>}
 
         <form onSubmit={handleSubmit} noValidate>
-          <label style={{ fontWeight: 600 }}>Name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={inputStyle}
-          />
+          <div style={formGrid}>
+            
+            <div style={fieldWrapper}>
+              <label style={labelStyle}>Full Name *</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={inputStyle}
+                placeholder="Enter full name"
+              />
+            </div>
 
-          <label style={labelStyle}>Business Email</label>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              ...inputStyle,
-              borderColor: emailError ? "red" : "#ccc",
-            }}
-          />
-          {emailError && (
-            <div style={errorText}>{emailError}</div>
-          )}
+            <div style={fieldWrapper}>
+              <label style={labelStyle}>Business Email *</label>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  borderColor: emailError ? "#e53935" : "#dcdcdc",
+                }}
+                placeholder="example@company.com"
+              />
+              {emailError && <div style={errorText}>{emailError}</div>}
+            </div>
 
-          <label style={labelStyle}>Phone</label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            style={{
-              ...inputStyle,
-              borderColor: phoneError ? "red" : "#ccc",
-            }}
-          />
-          {phoneError && (
-            <div style={errorText}>{phoneError}</div>
-          )}
+            <div style={fieldWrapper}>
+              <label style={labelStyle}>Phone *</label>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  borderColor: phoneError ? "#e53935" : "#dcdcdc",
+                }}
+                placeholder="10 digit mobile number"
+              />
+              {phoneError && <div style={errorText}>{phoneError}</div>}
+            </div>
 
-          <label style={labelStyle}>Status</label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            style={inputStyle}
-          >
-            <option value="new">New</option>
-            <option value="contacted">Contacted</option>
-            <option value="followup">Follow Up</option>
-            <option value="no_connect">No Connect</option>
-            <option value="converted">Converted</option>
-          </select>
+            <div style={fieldWrapper}>
+              <label style={labelStyle}>Lead Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
+                <option value="followup">Follow Up</option>
+                <option value="no_connect">No Connect</option>
+                <option value="converted">Converted</option>
+              </select>
+            </div>
 
-          <label style={labelStyle}>Assigned To</label>
-          <select
-            value={assignedTo}
-            onChange={(e) => setAssignedTo(e.target.value)}
-            style={inputStyle}
-          >
-            <option value="">Unassigned</option>
-            {salesAgents.map((agent) => (
-              <option key={agent._id} value={agent._id}>
-                {agent.email}
-              </option>
-            ))}
-          </select>
+            <div style={fieldWrapper}>
+              <label style={labelStyle}>Assigned To</label>
+              <select
+                value={assignedTo}
+                onChange={(e) => setAssignedTo(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">Unassigned</option>
+                {salesAgents.map((agent) => (
+                  <option key={agent._id} value={agent._id}>
+                    {agent.email}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <label style={labelStyle}>Source</label>
-          <input
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            style={inputStyle}
-          />
+            <div style={fieldWrapper}>
+              <label style={labelStyle}>Lead Source</label>
+              <input
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                style={inputStyle}
+                placeholder="Website, Referral, LinkedIn..."
+              />
+            </div>
+          </div>
 
-          <button
-            type="submit"
-            disabled={!isFormValid() || loading}
-            style={{
-              width: "100%",
-              marginTop: 25,
-              padding: "12px 0",
-              background:
-                "linear-gradient(90deg,#0d1b4c,#1f3a93,#6f4aff)",
-              color: "white",
-              borderRadius: 30,
-              fontSize: 18,
-              fontWeight: 600,
-              border: "none",
-              cursor: isFormValid()
-                ? "pointer"
-                : "not-allowed",
-              opacity: isFormValid() ? 1 : 0.6,
-            }}
-          >
-            {isEdit
-              ? loading
-                ? "Saving..."
-                : "Save Changes"
-              : loading
-              ? "Adding..."
-              : "Submit"}
-          </button>
+          <div style={buttonWrapper}>
+            <button
+              type="submit"
+              disabled={!isFormValid() || loading}
+              style={{
+                ...buttonStyle,
+                opacity: !isFormValid() ? 0.6 : 1,
+              }}
+            >
+              {isEdit
+                ? loading
+                  ? "Saving..."
+                  : "Update Lead"
+                : loading
+                ? "Creating..."
+                : "Create Lead"}
+            </button>
+          </div>
         </form>
       </div>
     </div>
   );
 }
 
-/* ================= CSS SAME ================= */
+/* ================= RESPONSIVE STYLES ================= */
 
-const inputStyle = {
+const pageWrapper = {
+  minHeight: "100vh",
+  background: "#f5f7fb",
+  padding: "40px 20px",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "flex-start", // top align instead of center
+};
+
+const cardStyle = {
   width: "100%",
-  padding: "12px 14px",
-  borderRadius: 8,
-  border: "1px solid #ccc",
-  marginBottom: 18,
-  fontSize: 15,
+  maxWidth: "1200px", // 🔥 increased width
+  background: "#ffffff",
+  borderRadius: "10px",
+  boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+  padding: "35px 40px",
+};
+
+const headerStyle = {
+  borderBottom: "1px solid #eee",
+  paddingBottom: "15px",
+  marginBottom: "20px",
+};
+
+const subText = {
+  margin: "6px 0 0",
+  color: "#666",
+  fontSize: "14px",
+};
+
+const formGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: "25px",
+};
+
+const fieldWrapper = {
+  display: "flex",
+  flexDirection: "column",
 };
 
 const labelStyle = {
-  fontWeight: 600,
-  marginBottom: 5,
-  display: "block",
+  fontSize: "13px",
+  fontWeight: "600",
+  marginBottom: "6px",
+  color: "#333",
+};
+
+const inputStyle = {
+  padding: "10px 12px",
+  borderRadius: "6px",
+  border: "1px solid #dcdcdc",
+  fontSize: "14px",
+  outline: "none",
+  width: "100%",
+  boxSizing: "border-box",
+};
+
+const buttonWrapper = {
+  marginTop: "25px",
+  display: "flex",
+  justifyContent: "flex-end",
+};
+
+const buttonStyle = {
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+  padding: "10px 22px",
+  borderRadius: "6px",
+  fontSize: "14px",
+  fontWeight: "600",
 };
 
 const errorText = {
-  color: "red",
-  fontSize: 12,
-  marginTop: -10,
-  marginBottom: 14,
+  color: "#e53935",
+  fontSize: "12px",
+  marginTop: "4px",
+};
+
+const apiErrorStyle = {
+  background: "#ffeaea",
+  color: "#d32f2f",
+  padding: "10px 14px",
+  borderRadius: "6px",
+  marginBottom: "15px",
+  fontSize: "13px",
 };

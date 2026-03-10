@@ -7,35 +7,49 @@ const activitySchema = new mongoose.Schema(
       ref: "Lead",
       required: true
     },
+
     activityType: {
       type: String,
       enum: ["call", "whatsapp", "email", "meeting"],
       required: true
     },
+
     activityDateTime: {
       type: Date,
       required: true
     },
+
     outcome: {
       type: String,
-      required: true
-    },
-    notes: {
-      type: String,
-      required: true,
+      default: "",
       trim: true
     },
+
+    notes: {
+      type: String,
+      default: "",
+      trim: true
+    },
+
     nextFollowUpDate: {
       type: Date,
       default: null
     },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true
     }
   },
-  { timestamps: true }
+  {
+    timestamps: true
+  }
 );
+
+/* =========================
+   INDEX FOR FAST DASHBOARD
+========================= */
+activitySchema.index({ nextFollowUpDate: 1 });
 
 module.exports = mongoose.model("Activity", activitySchema);

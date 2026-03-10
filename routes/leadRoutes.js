@@ -1,4 +1,3 @@
-```javascript
 console.log("✅ leadRoutes loaded");
 
 const express = require("express");
@@ -14,21 +13,51 @@ const path = require("path");
 const router = express.Router();
 
 /* =========================
+   STATUS NORMALIZER
+========================= */
+
+function normalizeStatus(status) {
+
+  if (!status) return "new";
+
+  const map = {
+    "new": "new",
+    "followup": "followup",
+    "follow up": "followup",
+    "not interested": "not_interested",
+    "not_interested": "not_interested",
+    "junk": "junk",
+    "closed": "closed",
+    "site visit planned": "site_visit_planned",
+    "site_visit_planned": "site_visit_planned",
+    "site visit done": "site_visit_done",
+    "site_visit_done": "site_visit_done"
+  };
+
+  const key = status.toLowerCase().trim();
+
+  return map[key] || "new";
+}
+
+/* =========================
    MULTER CONFIG
 ========================= */
+
 const upload = multer({
   dest: path.join(__dirname, "../uploads"),
 });
 
 /* =====================================================
-   🚀 BULK CSV UPLOAD
+   BULK CSV UPLOAD
 ===================================================== */
+
 router.post(
   "/bulk-upload",
   protect,
   allowRoles("admin", "sales_manager"),
   upload.single("file"),
   async (req, res) => {
+
     try {
 
       if (!req.file) {
@@ -66,13 +95,14 @@ router.post(
           name: row.name,
           email: row.email,
           phone: row.phone,
-          status: row.status || "new",
+          status: normalizeStatus(row.status),
           source: row.source,
           createdBy: req.user.id,
-          assignedTo: req.user.id,
+          assignedTo: req.user.id
         });
 
         inserted++;
+
       }
 
       fs.unlinkSync(req.file.path);
@@ -99,11 +129,13 @@ router.post(
 /* =========================
    CREATE LEAD
 ========================= */
+
 router.post(
   "/",
   protect,
   allowRoles("admin", "sales_manager"),
   async (req, res) => {
+
     try {
 
       const { name, email, phone, status, source, assignedTo } = req.body;
@@ -112,7 +144,7 @@ router.post(
         name,
         email,
         phone,
-        status,
+        status: normalizeStatus(status),
         source,
         createdBy: req.user.id,
         assignedTo: assignedTo || req.user.id,
@@ -127,8 +159,12 @@ router.post(
       res.status(201).json(populatedLead);
 
     } catch (err) {
-      console.log(err);
-      res.status(400).json({ message: "Failed to create lead" });
+
+      console.log("CREATE LEAD ERROR:", err);
+
+      res.status(400).json({
+        message: err.message || "Failed to create lead"
+      });
     }
   }
 );
@@ -136,6 +172,7 @@ router.post(
 /* =========================
    GET ALL LEADS
 ========================= */
+
 router.get("/", protect, async (req, res) => {
 
   try {
@@ -173,6 +210,7 @@ router.get("/", protect, async (req, res) => {
 /* =========================
    DASHBOARD SUMMARY
 ========================= */
+
 router.get("/stats/summary", protect, async (req, res) => {
 
   try {
@@ -240,6 +278,7 @@ router.get("/stats/summary", protect, async (req, res) => {
 /* =========================
    MONTHLY REPORT
 ========================= */
+
 router.get("/stats/monthly", protect, async (req, res) => {
 
   try {
@@ -274,6 +313,7 @@ router.get("/stats/monthly", protect, async (req, res) => {
 /* =========================
    TEAM PERFORMANCE
 ========================= */
+
 router.get("/stats/team", protect, async (req, res) => {
 
   try {
@@ -315,6 +355,7 @@ router.get("/stats/team", protect, async (req, res) => {
 /* =========================
    GET SINGLE LEAD
 ========================= */
+
 router.get("/:id", protect, async (req, res) => {
 
   try {
@@ -347,6 +388,7 @@ router.get("/:id", protect, async (req, res) => {
 /* =========================
    UPDATE LEAD
 ========================= */
+
 router.put(
   "/:id",
   protect,
@@ -354,6 +396,10 @@ router.put(
   async (req, res) => {
 
     try {
+
+      if (req.body.status) {
+        req.body.status = normalizeStatus(req.body.status);
+      }
 
       const updatedLead = await Lead.findByIdAndUpdate(
         req.params.id,
@@ -377,6 +423,7 @@ router.put(
 /* =========================
    DELETE LEAD
 ========================= */
+
 router.delete(
   "/:id",
   protect,
@@ -399,4 +446,3 @@ router.delete(
 );
 
 module.exports = router;
-```

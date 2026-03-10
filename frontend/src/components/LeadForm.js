@@ -34,8 +34,6 @@ Authorization:`Bearer ${localStorage.getItem("token")}`
 }
 });
 
-
-
 /* =========================
    LOAD SALES AGENTS
 ========================= */
@@ -48,8 +46,6 @@ axios
 .catch(()=>{});
 
 },[]);
-
-
 
 /* =========================
    LOAD LEAD (EDIT MODE)
@@ -84,8 +80,6 @@ setApiMsg(err?.response?.data?.message || "Failed to load lead");
 
 },[id,isEdit]);
 
-
-
 /* =========================
    EMAIL VALIDATION
 ========================= */
@@ -103,8 +97,6 @@ setEmailError("");
 }
 
 },[email]);
-
-
 
 /* =========================
    PHONE VALIDATION
@@ -124,8 +116,6 @@ setPhoneError("");
 
 },[phone]);
 
-
-
 /* =========================
    FORM VALIDATION
 ========================= */
@@ -139,8 +129,6 @@ if(!phone.trim() || phoneError) return false;
 return true;
 
 };
-
-
 
 /* =========================
    SUBMIT
@@ -163,8 +151,8 @@ name:name.trim(),
 email:email.trim(),
 phone:phone.replace(/\D/g,""),
 status,
-source:source.trim()||undefined,
-assignedTo:assignedTo||undefined
+source,
+assignedTo:assignedTo || null
 
 };
 
@@ -188,6 +176,8 @@ navigate("/");
 
 }catch(err){
 
+console.error(err);
+
 setApiMsg(err?.response?.data?.message || "Failed to save lead");
 
 }finally{
@@ -197,8 +187,6 @@ setLoading(false);
 }
 
 };
-
-
 
 return(
 
@@ -224,7 +212,6 @@ style={styles.input}
 />
 </Field>
 
-
 <Field label="Email *">
 <input
 value={email}
@@ -237,7 +224,6 @@ borderColor:emailError ? "#e53935":"#ddd"
 {emailError && <Error text={emailError}/>}
 </Field>
 
-
 <Field label="Phone *">
 <input
 value={phone}
@@ -249,7 +235,6 @@ borderColor:phoneError ? "#e53935":"#ddd"
 />
 {phoneError && <Error text={phoneError}/>}
 </Field>
-
 
 <Field label="Lead Status">
 
@@ -271,7 +256,6 @@ style={styles.input}
 
 </Field>
 
-
 <Field label="Assigned To">
 
 <select
@@ -292,19 +276,27 @@ style={styles.input}
 
 </Field>
 
-
 <Field label="Lead Source">
 
-<input
+<select
 value={source}
 onChange={e=>setSource(e.target.value)}
 style={styles.input}
-/>
+>
+
+<option value="">Select Source</option>
+<option value="website">Website</option>
+<option value="facebook">Facebook</option>
+<option value="google">Google</option>
+<option value="whatsapp">Whatsapp</option>
+<option value="reference">Reference</option>
+<option value="other">Other</option>
+
+</select>
 
 </Field>
 
 </div>
-
 
 <div style={styles.buttonWrap}>
 
@@ -333,8 +325,6 @@ opacity:!isFormValid()?0.6:1
 
 }
 
-
-
 /* SMALL COMPONENTS */
 
 function Field({label,children}){
@@ -353,8 +343,6 @@ return(
 function Error({text}){
 return <div style={styles.error}>{text}</div>
 }
-
-
 
 /* STYLES */
 

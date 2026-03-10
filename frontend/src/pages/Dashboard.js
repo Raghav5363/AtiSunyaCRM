@@ -1,13 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import {
-  FiBell,
-  FiMoon,
-  FiSun,
-  FiUsers,
-  FiCalendar,
-  FiBarChart2
-} from "react-icons/fi";
+import { FiUsers, FiCalendar, FiBarChart2 } from "react-icons/fi";
 
 import {
   Chart as ChartJS,
@@ -32,227 +25,328 @@ ChartJS.register(
 );
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({});
+
+  const [stats, setStats] = useState({
+    total: 0,
+    new: 0,
+    followup: 0,
+    not_interested: 0,
+    junk: 0,
+    closed: 0,
+    site_visit_planned: 0,
+    site_visit_done: 0
+  });
+
   const [monthly, setMonthly] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [activeTab, setActiveTab] = useState("summary");
-  const [darkMode, setDarkMode] = useState(false);
-  const [showNotify, setShowNotify] = useState(false);
-
+  const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem("token");
+
   const BASE_URL =
     process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  /* ================= FETCH ================= */
+  const headers = {
+    Authorization: `Bearer ${token}`
+  };
+
+  /* ================= FETCH STATS ================= */
 
   const fetchStats = useCallback(async () => {
-    if (!token) return;
-    const res = await axios.get(
-      `${BASE_URL}/api/leads/stats/summary`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setStats(res.data);
-  }, [BASE_URL, token]);
+    try {
+      const res = await axios.get(
+        `${BASE_URL}/api/leads/stats/summary`,
+        { headers }
+      );
+      setStats(res.data);
+    } catch (err) {
+      console.log("Stats error:", err);
+    }
+  }, [BASE_URL]);
+
+  /* ================= FETCH MONTHLY ================= */
 
   const fetchMonthly = useCallback(async () => {
-    if (!token) return;
-    const res = await axios.get(
-      `${BASE_URL}/api/leads/stats/monthly`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setMonthly(res.data);
-  }, [BASE_URL, token]);
+    try {
+      const res = await axios.get(
+        `${BASE_URL}/api/leads/stats/monthly`,
+        { headers }
+      );
+      setMonthly(res.data);
+    } catch (err) {
+      console.log("Monthly error:", err);
+    }
+  }, [BASE_URL]);
+
+  /* ================= FETCH SCHEDULE ================= */
 
   const fetchSchedule = useCallback(async () => {
-    if (!token) return;
-    const res = await axios.get(
-      `${BASE_URL}/api/activities/today`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setSchedule(res.data);
-  }, [BASE_URL, token]);
+    try {
+      const res = await axios.get(
+        `${BASE_URL}/api/activities/today`,
+        { headers }
+      );
+      setSchedule(res.data);
+    } catch (err) {
+      console.log("Schedule error:", err);
+    }
+  }, [BASE_URL]);
 
   useEffect(() => {
-    fetchStats();
-    fetchMonthly();
-    fetchSchedule();
+
+    const loadDashboard = async () => {
+
+      setLoading(true);
+
+      await Promise.all([
+        fetchStats(),
+        fetchMonthly(),
+        fetchSchedule()
+      ]);
+
+      setLoading(false);
+
+    };
+
+    loadDashboard();
+
   }, [fetchStats, fetchMonthly, fetchSchedule]);
 
-  /* ================= CHART DATA ================= */
+
+  /* ================= PIE CHART ================= */
 
   const pieData = {
-    labels: ["New", "Follow Up", "Closed"],
+    labels: [
+      "New",
+      "Follow Up",
+      "Not Interested",
+      "Junk",
+      "Closed",
+      "Site Visit Planned",
+      "Site Visit Done"
+    ],
     datasets: [
       {
         data: [
-          stats.new || 0,
-          stats.followup || 0,
-          stats.closed || 0
+          stats.new,
+          stats.followup,
+          stats.not_interested,
+          stats.junk,
+          stats.closed,
+          stats.site_visit_planned,
+          stats.site_visit_done
         ],
-        backgroundColor: ["#2563eb", "#f59e0b", "#10b981"]
+        backgroundColor: [
+          "#2563eb",
+          "#f59e0b",
+          "#ef4444",
+          "#9ca3af",
+          "#10b981",
+          "#6366f1",
+          "#06b6d4"
+        ]
       }
     ]
   };
 
+
+  /* ================= BAR CHART ================= */
+
   const barData = {
-    labels: monthly.map((m) => `Month ${m._id}`),
+    labels: monthly.map(m =>
+      new Date(0, m._id - 1).toLocaleString("default", { month: "short" })
+    ),
     datasets: [
       {
         label: "Leads",
-        data: monthly.map((m) => m.count),
+        data: monthly.map(m => m.count),
         backgroundColor: "#6366f1"
       }
     ]
   };
 
-  return (
-    <div className={darkMode ? "dashboard dark" : "dashboard"}>
 
- {/* NAVBAR */}
-<div className="navbar">
-  <div className="navRight">
-
-    {/* NOTIFICATION */}
-    <div className="notifyWrapper">
-      <div
-        className="icon notifyIcon"
-        onClick={() => setShowNotify(!showNotify)}
-      >
-        <FiBell />
-        <span className="notifyBadge">3</span>
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <p>Loading dashboard...</p>
       </div>
-
-      {showNotify && (
-        <div className="notifyDropdown">
-          <div className="notifyHeader">Notifications</div>
-          <div className="notifyItem">New lead assigned</div>
-          <div className="notifyItem">Follow up reminder</div>
-          <div className="notifyItem">Site visit scheduled</div>
-        </div>
-      )}
-    </div>
-
-    {/* DARK MODE */}
-    <button
-      className="iconBtn"
-      onClick={() => setDarkMode(!darkMode)}
-    >
-      {darkMode ? <FiSun /> : <FiMoon />}
-    </button>
-
-  </div>
-</div>
+    );
+  }
 
 
+  return (
 
-      {/* TABS */}
+    <div className="dashboard">
+
       <div className="tabs">
+
         <Tab
           icon={<FiUsers />}
           label="Lead Summary"
           active={activeTab === "summary"}
           onClick={() => setActiveTab("summary")}
         />
+
         <Tab
           icon={<FiCalendar />}
           label="Today's Schedule"
           active={activeTab === "schedule"}
           onClick={() => setActiveTab("schedule")}
         />
+
         <Tab
           icon={<FiBarChart2 />}
           label="Lead Dashboard"
           active={activeTab === "dashboard"}
           onClick={() => setActiveTab("dashboard")}
         />
+
       </div>
 
-      {/* SUMMARY */}
+
       {activeTab === "summary" && (
+
         <div className="kpiWrapper">
+
           <KpiCard title="All Lead" value={stats.total} />
           <KpiCard title="New Leads" value={stats.new} />
           <KpiCard title="Follow Up" value={stats.followup} />
-          <KpiCard title="Not Interested" value={stats.notInterested} />
+          <KpiCard title="Not Interested" value={stats.not_interested} />
           <KpiCard title="Junk" value={stats.junk} />
           <KpiCard title="Closed" value={stats.closed} />
-          <KpiCard title="Site Visit Planned" value={stats.siteVisitPlanned} />
-          <KpiCard title="Site Visit Done" value={stats.siteVisitDone} />
+          <KpiCard title="Site Visit Planned" value={stats.site_visit_planned} />
+          <KpiCard title="Site Visit Done" value={stats.site_visit_done} />
+
         </div>
+
       )}
 
-      {/* SCHEDULE */}
+
       {activeTab === "schedule" && (
+
         <div className="contentCard">
+
           <h3>Today's Schedule</h3>
-          {schedule.length === 0
-            ? <p>No meetings today.</p>
-            : schedule.map((item, i) => (
-                <div key={i} className="scheduleItem">
-                  {item.title} - {item.time}
-                </div>
-              ))}
+
+          {schedule.length === 0 ? (
+            <p>No followups today.</p>
+          ) : (
+            schedule.map((item, i) => (
+              <div key={i} className="scheduleItem">
+
+                <b>{item.leadName || "Lead"}</b>
+
+                {" - "}
+
+                {new Date(item.time).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit"
+                })}
+
+              </div>
+            ))
+          )}
+
         </div>
+
       )}
 
-      {/* DASHBOARD */}
+
       {activeTab === "dashboard" && (
+
         <div className="chartSection">
+
           <div className="chartCard">
+
             <h3>Status Distribution</h3>
             <Pie data={pieData} />
+
           </div>
+
           <div className="chartCard">
+
             <h3>Monthly Leads</h3>
             <Bar data={barData} />
+
           </div>
+
         </div>
+
       )}
+
     </div>
+
   );
+
 }
 
-/* COMPONENTS */
+
+/* ================= TAB ================= */
 
 function Tab({ icon, label, active, onClick }) {
+
   return (
+
     <div
       onClick={onClick}
       className={active ? "tab activeTab" : "tab"}
     >
+
       {icon}
       <span>{label}</span>
+
     </div>
+
   );
+
 }
 
+
+/* ================= KPI CARD ================= */
+
 function KpiCard({ title, value }) {
+
   const [count, setCount] = React.useState(0);
 
   React.useEffect(() => {
+
     let start = 0;
+
     const end = value || 0;
+
     const duration = 800;
+
     const increment = end / (duration / 20);
 
     const timer = setInterval(() => {
+
       start += increment;
+
       if (start >= end) {
         start = end;
         clearInterval(timer);
       }
+
       setCount(Math.floor(start));
+
     }, 20);
 
     return () => clearInterval(timer);
+
   }, [value]);
 
+
   return (
+
     <div className="kpiCard">
+
       <h4>{title}</h4>
       <p className="kpiValue">{count}</p>
-    </div>
-  );
-}
 
+    </div>
+
+  );
+
+}

@@ -3,355 +3,438 @@ import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
-/* ================= SAFE BASE URL ================= */
 const BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const API_URL = `${BASE_URL}/api/leads`;
 
 export default function LeadForm() {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const isEdit = Boolean(id);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState("new");
-  const [source, setSource] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
-  const [salesAgents, setSalesAgents] = useState([]);
+const navigate = useNavigate();
+const { id } = useParams();
+const isEdit = Boolean(id);
 
-  const [emailError, setEmailError] = useState("");
-  const [phoneError, setPhoneError] = useState("");
-  const [apiMsg, setApiMsg] = useState("");
-  const [loading, setLoading] = useState(false);
+const [name,setName]=useState("");
+const [email,setEmail]=useState("");
+const [phone,setPhone]=useState("");
+const [status,setStatus]=useState("new");
+const [source,setSource]=useState("");
+const [assignedTo,setAssignedTo]=useState("");
 
-  const authConfig = () => ({
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
-    },
-  });
+const [salesAgents,setSalesAgents]=useState([]);
 
-  /* ================= LOAD SALES AGENTS ================= */
-  useEffect(() => {
-    axios
-      .get(`${BASE_URL}/api/users/sales-agents`, authConfig())
-      .then((res) => setSalesAgents(res.data))
-      .catch(() => {});
-  }, []);
+const [emailError,setEmailError]=useState("");
+const [phoneError,setPhoneError]=useState("");
+const [apiMsg,setApiMsg]=useState("");
+const [loading,setLoading]=useState(false);
 
-  /* ================= LOAD LEAD (EDIT MODE) ================= */
-  useEffect(() => {
-    if (!isEdit) return;
+const authConfig=()=>({
+headers:{
+Authorization:`Bearer ${localStorage.getItem("token")}`
+}
+});
 
-    setLoading(true);
 
-    axios
-      .get(`${API_URL}/${id}`, authConfig())
-      .then((res) => {
-        const lead = res.data;
-        setName(lead.name || "");
-        setEmail(lead.email || "");
-        setPhone(lead.phone || "");
-        setStatus(lead.status || "new");
-        setSource(lead.source || "");
-        setAssignedTo(lead.assignedTo?._id || "");
-      })
-      .catch((err) => {
-        setApiMsg(
-          err?.response?.data?.message || "Failed to load lead"
-        );
-      })
-      .finally(() => setLoading(false));
-  }, [id, isEdit]);
 
-  /* ================= EMAIL VALIDATION ================= */
-  useEffect(() => {
-    if (!email) return setEmailError("");
+/* =========================
+   LOAD SALES AGENTS
+========================= */
 
-    if (!email.includes("@") || email.startsWith("@") || email.endsWith("@")) {
-      setEmailError("Enter a valid email.");
-      return;
-    }
+useEffect(()=>{
 
-    const parts = email.split("@");
-    if (!parts[1] || !parts[1].includes(".")) {
-      setEmailError("Email must contain a domain (example.com)");
-      return;
-    }
+axios
+.get(`${BASE_URL}/api/users/sales-agents`,authConfig())
+.then(res=>setSalesAgents(res.data))
+.catch(()=>{});
 
-    setEmailError("");
-  }, [email]);
+},[]);
 
-  /* ================= PHONE VALIDATION ================= */
-  useEffect(() => {
-    if (!phone) return setPhoneError("");
 
-    const cleaned = phone.replace(/\D/g, "");
 
-    if (!/^\d{10}$/.test(cleaned)) {
-      setPhoneError("Phone must be 10 digits.");
-    } else {
-      setPhoneError("");
-    }
-  }, [phone]);
+/* =========================
+   LOAD LEAD (EDIT MODE)
+========================= */
 
-  const isFormValid = () => {
-    if (!name.trim()) return false;
-    if (!email.trim() || emailError) return false;
-    if (!phone.trim() || phoneError) return false;
-    return true;
-  };
+useEffect(()=>{
 
-  /* ================= SUBMIT ================= */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setApiMsg("");
+if(!isEdit) return;
 
-    if (!isFormValid()) {
-      setApiMsg("Please fix validation errors before submitting.");
-      return;
-    }
+setLoading(true);
 
-    const payload = {
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.replace(/\D/g, ""),
-      status,
-      source: source.trim() || undefined,
-      assignedTo: assignedTo || undefined,
-    };
+axios.get(`${API_URL}/${id}`,authConfig())
 
-    try {
-      setLoading(true);
+.then(res=>{
 
-      if (isEdit) {
-        await axios.put(`${API_URL}/${id}`, payload, authConfig());
-        toast.success("Lead updated successfully ✔");
-      } else {
-        await axios.post(API_URL, payload, authConfig());
-        toast.success("Lead added successfully ✔");
-      }
+const lead=res.data;
 
-      navigate("/");
-    } catch (err) {
-      setApiMsg(
-        err?.response?.data?.message || "Failed to save lead"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+setName(lead.name||"");
+setEmail(lead.email||"");
+setPhone(lead.phone||"");
+setStatus(lead.status||"new");
+setSource(lead.source||"");
+setAssignedTo(lead.assignedTo?._id||"");
 
-  return (
-    <div style={pageWrapper}>
-      <div style={cardStyle}>
-        <div style={headerStyle}>
-          <h2 style={{ margin: 0 }}>
-            {isEdit ? "Edit Lead" : "Create Lead"}
-          </h2>
-          <p style={subText}>
-            Enter lead details below
-          </p>
-        </div>
+})
 
-        {apiMsg && <div style={apiErrorStyle}>{apiMsg}</div>}
+.catch(err=>{
+setApiMsg(err?.response?.data?.message || "Failed to load lead");
+})
 
-        <form onSubmit={handleSubmit} noValidate>
-          <div style={formGrid}>
-            
-            <div style={fieldWrapper}>
-              <label style={labelStyle}>Full Name *</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                style={inputStyle}
-                placeholder="Enter full name"
-              />
-            </div>
+.finally(()=>setLoading(false));
 
-            <div style={fieldWrapper}>
-              <label style={labelStyle}>Business Email *</label>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  ...inputStyle,
-                  borderColor: emailError ? "#e53935" : "#dcdcdc",
-                }}
-                placeholder="example@company.com"
-              />
-              {emailError && <div style={errorText}>{emailError}</div>}
-            </div>
+},[id,isEdit]);
 
-            <div style={fieldWrapper}>
-              <label style={labelStyle}>Phone *</label>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                style={{
-                  ...inputStyle,
-                  borderColor: phoneError ? "#e53935" : "#dcdcdc",
-                }}
-                placeholder="10 digit mobile number"
-              />
-              {phoneError && <div style={errorText}>{phoneError}</div>}
-            </div>
 
-            <div style={fieldWrapper}>
-              <label style={labelStyle}>Lead Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                style={inputStyle}
-              >
-                <option value="new">New</option>
-                <option value="contacted">Contacted</option>
-                <option value="followup">Follow Up</option>
-                <option value="no_connect">No Connect</option>
-                <option value="converted">Converted</option>
-              </select>
-            </div>
 
-            <div style={fieldWrapper}>
-              <label style={labelStyle}>Assigned To</label>
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                style={inputStyle}
-              >
-                <option value="">Unassigned</option>
-                {salesAgents.map((agent) => (
-                  <option key={agent._id} value={agent._id}>
-                    {agent.email}
-                  </option>
-                ))}
-              </select>
-            </div>
+/* =========================
+   EMAIL VALIDATION
+========================= */
 
-            <div style={fieldWrapper}>
-              <label style={labelStyle}>Lead Source</label>
-              <input
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-                style={inputStyle}
-                placeholder="Website, Referral, LinkedIn..."
-              />
-            </div>
-          </div>
+useEffect(()=>{
 
-          <div style={buttonWrapper}>
-            <button
-              type="submit"
-              disabled={!isFormValid() || loading}
-              style={{
-                ...buttonStyle,
-                opacity: !isFormValid() ? 0.6 : 1,
-              }}
-            >
-              {isEdit
-                ? loading
-                  ? "Saving..."
-                  : "Update Lead"
-                : loading
-                ? "Creating..."
-                : "Create Lead"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+if(!email) return setEmailError("");
+
+const emailRegex=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+if(!emailRegex.test(email)){
+setEmailError("Enter valid email");
+}else{
+setEmailError("");
 }
 
-/* ================= RESPONSIVE STYLES ================= */
+},[email]);
 
-const pageWrapper = {
-  minHeight: "100vh",
-  background: "#f5f7fb",
-  padding: "40px 20px",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "flex-start", // top align instead of center
+
+
+/* =========================
+   PHONE VALIDATION
+========================= */
+
+useEffect(()=>{
+
+if(!phone) return setPhoneError("");
+
+const cleaned=phone.replace(/\D/g,"");
+
+if(!/^\d{10}$/.test(cleaned)){
+setPhoneError("Phone must be 10 digits");
+}else{
+setPhoneError("");
+}
+
+},[phone]);
+
+
+
+/* =========================
+   FORM VALIDATION
+========================= */
+
+const isFormValid=()=>{
+
+if(!name.trim()) return false;
+if(!email.trim() || emailError) return false;
+if(!phone.trim() || phoneError) return false;
+
+return true;
+
 };
 
-const cardStyle = {
-  width: "100%",
-  maxWidth: "1200px", // 🔥 increased width
-  background: "#ffffff",
-  borderRadius: "10px",
-  boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-  padding: "35px 40px",
+
+
+/* =========================
+   SUBMIT
+========================= */
+
+const handleSubmit=async(e)=>{
+
+e.preventDefault();
+
+setApiMsg("");
+
+if(!isFormValid()){
+setApiMsg("Please fix errors");
+return;
+}
+
+const payload={
+
+name:name.trim(),
+email:email.trim(),
+phone:phone.replace(/\D/g,""),
+status,
+source:source.trim()||undefined,
+assignedTo:assignedTo||undefined
+
 };
 
-const headerStyle = {
-  borderBottom: "1px solid #eee",
-  paddingBottom: "15px",
-  marginBottom: "20px",
+try{
+
+setLoading(true);
+
+if(isEdit){
+
+await axios.put(`${API_URL}/${id}`,payload,authConfig());
+toast.success("Lead updated");
+
+}else{
+
+await axios.post(API_URL,payload,authConfig());
+toast.success("Lead created");
+
+}
+
+navigate("/");
+
+}catch(err){
+
+setApiMsg(err?.response?.data?.message || "Failed to save lead");
+
+}finally{
+
+setLoading(false);
+
+}
+
 };
 
-const subText = {
-  margin: "6px 0 0",
-  color: "#666",
-  fontSize: "14px",
-};
 
-const formGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-  gap: "25px",
-};
 
-const fieldWrapper = {
-  display: "flex",
-  flexDirection: "column",
-};
+return(
 
-const labelStyle = {
-  fontSize: "13px",
-  fontWeight: "600",
-  marginBottom: "6px",
-  color: "#333",
-};
+<div style={styles.page}>
 
-const inputStyle = {
-  padding: "10px 12px",
-  borderRadius: "6px",
-  border: "1px solid #dcdcdc",
-  fontSize: "14px",
-  outline: "none",
-  width: "100%",
-  boxSizing: "border-box",
-};
+<div style={styles.card}>
 
-const buttonWrapper = {
-  marginTop: "25px",
-  display: "flex",
-  justifyContent: "flex-end",
-};
+<h2 style={styles.title}>
+{isEdit ? "Edit Lead" : "Add New Lead"}
+</h2>
 
-const buttonStyle = {
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  padding: "10px 22px",
-  borderRadius: "6px",
-  fontSize: "14px",
-  fontWeight: "600",
-};
+{apiMsg && <div style={styles.apiError}>{apiMsg}</div>}
 
-const errorText = {
-  color: "#e53935",
-  fontSize: "12px",
-  marginTop: "4px",
-};
+<form onSubmit={handleSubmit}>
 
-const apiErrorStyle = {
-  background: "#ffeaea",
-  color: "#d32f2f",
-  padding: "10px 14px",
-  borderRadius: "6px",
-  marginBottom: "15px",
-  fontSize: "13px",
+<div style={styles.grid}>
+
+<Field label="Full Name *">
+<input
+value={name}
+onChange={e=>setName(e.target.value)}
+style={styles.input}
+/>
+</Field>
+
+
+<Field label="Email *">
+<input
+value={email}
+onChange={e=>setEmail(e.target.value)}
+style={{
+...styles.input,
+borderColor:emailError ? "#e53935":"#ddd"
+}}
+/>
+{emailError && <Error text={emailError}/>}
+</Field>
+
+
+<Field label="Phone *">
+<input
+value={phone}
+onChange={e=>setPhone(e.target.value)}
+style={{
+...styles.input,
+borderColor:phoneError ? "#e53935":"#ddd"
+}}
+/>
+{phoneError && <Error text={phoneError}/>}
+</Field>
+
+
+<Field label="Lead Status">
+
+<select
+value={status}
+onChange={e=>setStatus(e.target.value)}
+style={styles.input}
+>
+
+<option value="new">New</option>
+<option value="followup">Follow Up</option>
+<option value="not_interested">Not Interested</option>
+<option value="junk">Junk</option>
+<option value="closed">Closed</option>
+<option value="site_visit_planned">Site Visit Planned</option>
+<option value="site_visit_done">Site Visit Done</option>
+
+</select>
+
+</Field>
+
+
+<Field label="Assigned To">
+
+<select
+value={assignedTo}
+onChange={e=>setAssignedTo(e.target.value)}
+style={styles.input}
+>
+
+<option value="">Unassigned</option>
+
+{salesAgents.map(agent=>(
+<option key={agent._id} value={agent._id}>
+{agent.email}
+</option>
+))}
+
+</select>
+
+</Field>
+
+
+<Field label="Lead Source">
+
+<input
+value={source}
+onChange={e=>setSource(e.target.value)}
+style={styles.input}
+/>
+
+</Field>
+
+</div>
+
+
+<div style={styles.buttonWrap}>
+
+<button
+type="submit"
+disabled={!isFormValid() || loading}
+style={{
+...styles.button,
+opacity:!isFormValid()?0.6:1
+}}
+>
+
+{loading ? "Saving..." : isEdit ? "Update Lead":"Create Lead"}
+
+</button>
+
+</div>
+
+</form>
+
+</div>
+
+</div>
+
+);
+
+}
+
+
+
+/* SMALL COMPONENTS */
+
+function Field({label,children}){
+
+return(
+
+<div style={styles.field}>
+<label style={styles.label}>{label}</label>
+{children}
+</div>
+
+)
+
+}
+
+function Error({text}){
+return <div style={styles.error}>{text}</div>
+}
+
+
+
+/* STYLES */
+
+const styles={
+
+page:{
+minHeight:"100vh",
+padding:"20px 15px",
+display:"flex",
+justifyContent:"center",
+background:"#f5f7fb"
+},
+
+card:{
+width:"100%",
+maxWidth:"850px",
+background:"#fff",
+padding:"25px",
+borderRadius:"10px",
+boxShadow:"0 4px 14px rgba(0,0,0,0.08)"
+},
+
+title:{
+marginBottom:"20px"
+},
+
+grid:{
+display:"grid",
+gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",
+gap:"16px"
+},
+
+field:{
+display:"flex",
+flexDirection:"column"
+},
+
+label:{
+fontSize:"13px",
+fontWeight:"600",
+marginBottom:"5px"
+},
+
+input:{
+width:"100%",
+padding:"10px",
+borderRadius:"6px",
+border:"1px solid #ddd",
+fontSize:"14px",
+boxSizing:"border-box"
+},
+
+buttonWrap:{
+marginTop:"20px",
+display:"flex",
+justifyContent:"flex-end"
+},
+
+button:{
+background:"#2563eb",
+color:"#fff",
+border:"none",
+padding:"10px 18px",
+borderRadius:"6px",
+fontWeight:"600",
+cursor:"pointer"
+},
+
+error:{
+color:"#e53935",
+fontSize:"12px",
+marginTop:"3px"
+},
+
+apiError:{
+background:"#ffeaea",
+padding:"10px",
+marginBottom:"12px",
+borderRadius:"6px",
+color:"#d32f2f"
+}
+
 };

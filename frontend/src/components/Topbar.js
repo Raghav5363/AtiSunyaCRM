@@ -1,33 +1,58 @@
 // frontend/src/components/Topbar.js
+
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 export default function Topbar({ openSidebar }) {
+
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem("darkMode") === "true"
+  );
 
   /* ===== SCREEN CHECK ===== */
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  /* ===== SAFE TOKEN DECODE ===== */
+  /* ===== APPLY DARK MODE ===== */
+  useEffect(() => {
+
+    if (darkMode) {
+      document.body.classList.add("dark");
+    } else {
+      document.body.classList.remove("dark");
+    }
+
+    localStorage.setItem("darkMode", darkMode);
+
+  }, [darkMode]);
+
+  /* ===== TOKEN SAFE DECODE ===== */
   let user = null;
+
   try {
+
     const token = localStorage.getItem("token");
+
     if (token) {
       user = JSON.parse(atob(token.split(".")[1]));
     }
+
   } catch (err) {
     console.log("Token decode failed");
   }
 
   /* ===== PAGE TITLES ===== */
+
   const pageTitles = {
     "/": "Leads Dashboard",
     "/add": "Add Lead",
@@ -37,39 +62,46 @@ export default function Topbar({ openSidebar }) {
   };
 
   const getPageTitle = () => {
+
     if (location.pathname.startsWith("/edit")) return "Edit Lead";
     if (location.pathname.startsWith("/lead")) return "Lead Details";
     if (location.pathname.startsWith("/login")) return "Login";
+
     return pageTitles[location.pathname] || "Dashboard";
   };
 
   /* ===== LOGOUT ===== */
+
   const handleLogout = () => {
+
     localStorage.clear();
     navigate("/login", { replace: true });
+
   };
 
   return (
+
     <div
       style={{
         height: 60,
-        background: "#ffffff",
+        background: "var(--topbar-bg)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         padding: isMobile ? "0 15px" : "0 30px",
         borderBottom: "1px solid #e5e7eb",
-        boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
         position: "sticky",
         top: 0,
         zIndex: 500,
       }}
     >
-      {/* ===== LEFT ===== */}
+
+      {/* LEFT SECTION */}
+
       <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
-        
-        {/* HAMBURGER */}
+
         {isMobile && (
+
           <button
             onClick={openSidebar}
             style={{
@@ -81,21 +113,23 @@ export default function Topbar({ openSidebar }) {
           >
             ☰
           </button>
+
         )}
 
-        {/* TITLE */}
         <div
           style={{
             fontSize: isMobile ? 16 : 20,
             fontWeight: 600,
-            color: "#111827",
+            color: "var(--text-primary)",
           }}
         >
           {getPageTitle()}
         </div>
+
       </div>
 
-      {/* ===== RIGHT ===== */}
+      {/* RIGHT SECTION */}
+
       <div
         style={{
           display: "flex",
@@ -103,12 +137,30 @@ export default function Topbar({ openSidebar }) {
           gap: isMobile ? 10 : 18,
         }}
       >
+
+        {/* DARK MODE TOGGLE */}
+
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          style={{
+            fontSize: 18,
+            border: "none",
+            background: "none",
+            cursor: "pointer",
+          }}
+        >
+          {darkMode ? "☀️" : "🌙"}
+        </button>
+
+
         {/* ROLE BADGE */}
+
         {!isMobile && user?.role && (
+
           <div
             style={{
               fontSize: 12,
-              color: "#374151",
+              color: "var(--text-primary)",
               background: "#f3f4f6",
               padding: "6px 14px",
               borderRadius: 20,
@@ -117,10 +169,13 @@ export default function Topbar({ openSidebar }) {
           >
             {user.role.replace("_", " ").toUpperCase()}
           </div>
+
         )}
 
         {/* LOGOUT */}
+
         {location.pathname !== "/login" && (
+
           <button
             onClick={handleLogout}
             style={{
@@ -136,11 +191,12 @@ export default function Topbar({ openSidebar }) {
           >
             Logout
           </button>
+
         )}
+
       </div>
+
     </div>
+
   );
 }
-
-
-//Comment Added

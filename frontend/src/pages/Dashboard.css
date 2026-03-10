@@ -1,311 +1,212 @@
-/* ================= BASE ================= */
+/* MAIN */
 
 .dashboard {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #f3f4f6;
   min-height: 100vh;
-  padding: 30px;
-  font-family: "Segoe UI", sans-serif;
-  background: linear-gradient(135deg, #eef2ff, #f8fafc);
-  transition: background 0.4s ease, color 0.3s ease;
-  animation: fadeIn 0.5s ease-in-out;
 }
-
-/* PAGE FADE IN */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ================= DARK MODE ================= */
 
 .dashboard.dark {
-  background: linear-gradient(135deg, #0f172a, #1e293b);
+  background: #111827;
   color: white;
 }
 
-/* ================= NAVBAR ================= */
+/* NAVBAR */
 
 .navbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  position: relative;
-}
-
-.dashboard.dark .navbar {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  justify-content: flex-end;
+  margin-bottom: 20px;
 }
 
 .navRight {
   display: flex;
   align-items: center;
-  gap: 18px;
-  margin-left: auto;
+  gap: 15px;
 }
 
-/* ================= ICONS ================= */
-
-.icon,
-.iconBtn {
-  font-size: 20px;
+.icon {
+  font-size: 22px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  padding: 8px;
-  border-radius: 50%;
-  background: transparent;
+  position: relative;
+}
+
+.iconBtn {
   border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
 }
 
-.icon:hover,
-.iconBtn:hover {
-  background: rgba(79, 70, 229, 0.1);
-  transform: translateY(-2px);
-}
-
-.iconBtn:hover {
-  transform: rotate(15deg);
-}
-
-/* ================= NOTIFICATION ================= */
+/* NOTIFICATION */
 
 .notifyWrapper {
   position: relative;
 }
 
-.notifyIcon {
-  position: relative;
-}
-
 .notifyBadge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  background: #ef4444;
+  top: -5px;
+  right: -8px;
+  background: red;
   color: white;
   font-size: 10px;
-  padding: 2px 6px;
+  padding: 2px 5px;
   border-radius: 50%;
-  font-weight: 600;
 }
 
 .notifyDropdown {
   position: absolute;
-  top: 50px;
   right: 0;
-  width: 260px;
+  top: 35px;
   background: white;
-  border-radius: 14px;
-  padding: 15px;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
-  animation: fadeIn 0.25s ease;
-  z-index: 999;
-}
-
-.dashboard.dark .notifyDropdown {
-  background: #1e293b;
-  color: white;
+  color: black;
+  width: 220px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  overflow: hidden;
+  z-index: 20;
 }
 
 .notifyHeader {
-  font-weight: 600;
-  margin-bottom: 10px;
-  font-size: 14px;
+  padding: 10px;
+  font-weight: bold;
+  border-bottom: 1px solid #eee;
 }
 
 .notifyItem {
   padding: 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  transition: 0.2s ease;
+  border-bottom: 1px solid #eee;
 }
 
-.notifyItem:hover {
-  background: rgba(79, 70, 229, 0.08);
+.notifyItem:last-child {
+  border-bottom: none;
 }
 
-/* ================= PAGE TITLE ================= */
-
-.pageTitle {
-  font-size: 22px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.dashboard.dark .pageTitle {
-  color: white;
-}
-
-/* ================= TABS ================= */
+/* TABS */
 
 .tabs {
   display: flex;
-  gap: 15px;
-  margin-bottom: 30px;
+  gap: 10px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
 .tab {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 10px;
+  gap: 6px;
+  padding: 10px 14px;
+  background: white;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-}
-
-.tab:hover {
-  background: rgba(79, 70, 229, 0.08);
-  transform: translateY(-3px);
+  font-size: 14px;
 }
 
 .activeTab {
-  background: #4f46e5;
+  background: #2563eb;
   color: white;
-  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
 }
 
-/* ================= KPI GRID ================= */
+/* KPI CARDS */
 
 .kpiWrapper {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 25px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
 }
-
-/* ================= KPI CARD ================= */
 
 .kpiCard {
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.7);
-  padding: 28px;
-  border-radius: 16px;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
   text-align: center;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-}
-
-.kpiCard:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-}
-
-.dashboard.dark .kpiCard {
-  background: rgba(30, 41, 59, 0.7);
 }
 
 .kpiCard h4 {
-  font-weight: 500;
-  margin-bottom: 8px;
+  font-size: 14px;
+  margin-bottom: 10px;
 }
 
 .kpiValue {
-  font-size: 32px;
-  font-weight: 700;
-  margin-top: 10px;
+  font-size: 24px;
+  font-weight: bold;
 }
 
-/* ================= CONTENT CARD ================= */
+/* CONTENT CARD */
 
 .contentCard {
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.7);
-  padding: 25px;
-  border-radius: 16px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
-}
-
-.dashboard.dark .contentCard {
-  background: rgba(30, 41, 59, 0.7);
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
 }
 
 .scheduleItem {
-  margin-top: 12px;
-  padding: 10px;
-  border-radius: 8px;
-  transition: 0.2s ease;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
 }
 
-.scheduleItem:hover {
-  background: rgba(79, 70, 229, 0.08);
-}
-
-/* ================= CHART SECTION ================= */
+/* CHART SECTION */
 
 .chartSection {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 25px;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
 }
 
 .chartCard {
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.7);
-  padding: 25px;
-  border-radius: 16px;
-  transition: 0.3s ease;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
 }
 
-.chartCard:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
-}
-
-.dashboard.dark .chartCard {
-  background: rgba(30, 41, 59, 0.7);
-}
-
-/* ================= MOBILE EXACT LAYOUT ================= */
+/* ================= MOBILE RESPONSIVE ================= */
 
 @media (max-width: 768px) {
 
-  .kpiWrapper {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 30px 20px;
-  }
-
-  .kpiCard {
-    background: transparent;
-    box-shadow: none;
-    padding: 0;
-  }
-
-  .kpiValue {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    border: 2px solid #555;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: auto;
-    font-size: 20px;
-    background: white;
-  }
-
-  .dashboard.dark .kpiValue {
-    background: #1e293b;
-    border: 2px solid #aaa;
+  .dashboard {
+    padding: 12px;
   }
 
   .tabs {
-    gap: 10px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
   }
 
   .tab {
-    flex: 1;
-    flex-direction: column;
+    min-width: 150px;
+    justify-content: center;
+  }
+
+  .kpiWrapper {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .chartSection {
+    grid-template-columns: 1fr;
+  }
+
+  .chartCard {
+    padding: 15px;
+  }
+
+}
+
+/* EXTRA SMALL MOBILE */
+
+@media (max-width: 480px) {
+
+  .kpiWrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .tab span {
     font-size: 12px;
   }
+
+  .notifyDropdown {
+    width: 180px;
+  }
+
 }

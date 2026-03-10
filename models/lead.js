@@ -1,7 +1,12 @@
+```javascript
 const mongoose = require("mongoose");
 
 const leadSchema = new mongoose.Schema(
   {
+    /* =========================
+       BASIC INFO
+    ========================= */
+
     name: {
       type: String,
       required: true,
@@ -12,30 +17,56 @@ const leadSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      lowercase: true,
     },
 
     phone: {
       type: String,
       required: true,
+      trim: true,
     },
+
+    /* =========================
+       LEAD STATUS
+    ========================= */
 
     status: {
       type: String,
-      enum: ["new", "contacted", "followup", "no_connect", "converted"],
+      enum: [
+        "new",
+        "followup",
+        "not_interested",
+        "junk",
+        "closed",
+        "site_visit_planned",
+        "site_visit_done",
+      ],
       default: "new",
     },
+
+    /* =========================
+       LEAD SOURCE
+    ========================= */
 
     source: {
       type: String,
       default: "",
+      trim: true,
     },
 
-    // 🔥 NEW FIELD (Lead Creator)
+    /* =========================
+       LEAD CREATOR
+    ========================= */
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
+
+    /* =========================
+       ASSIGNED SALES AGENT
+    ========================= */
 
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
@@ -44,55 +75,18 @@ const leadSchema = new mongoose.Schema(
     },
 
     /* =========================
-       ACTIVITIES
+       NEXT FOLLOWUP DATE
     ========================= */
-    activities: [
-      {
-        activityType: {
-          type: String,
-          enum: ["call", "whatsapp", "email", "meeting"],
-          required: true,
-        },
-
-        activityDateTime: {
-          type: Date,
-          required: true,
-        },
-
-        outcome: {
-          type: String,
-          required: true,
-        },
-
-        notes: {
-          type: String,
-          required: true,
-        },
-
-        nextFollowUpDate: {
-          type: Date,
-          default: null,
-        },
-
-        createdBy: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
 
     nextFollowUpDate: {
       type: Date,
       default: null,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 module.exports = mongoose.model("Lead", leadSchema);
+```

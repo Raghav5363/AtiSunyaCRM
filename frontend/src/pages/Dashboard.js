@@ -35,7 +35,6 @@ ChartJS.register(
 /* ================= DATE FORMAT ================= */
 
 const formatDateTime = (date) => {
-
   if (!date) return "--";
 
   const d = new Date(date);
@@ -48,15 +47,12 @@ const formatDateTime = (date) => {
     hour: "2-digit",
     minute: "2-digit"
   });
-
 };
 
 /* ================= ACTIVITY ICON ================= */
 
 const getActivityIcon = (type) => {
-
   switch (type) {
-
     case "call":
       return <FiPhone size={16} />;
 
@@ -68,13 +64,10 @@ const getActivityIcon = (type) => {
 
     default:
       return <FiCalendar size={16} />;
-
   }
-
 };
 
 export default function Dashboard() {
-
   const navigate = useNavigate();
 
   const [stats, setStats] = useState({
@@ -99,76 +92,56 @@ export default function Dashboard() {
     process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   const headers = {
-    Authorization: `Bearer ${token}`
+    Authorization: token ? `Bearer ${token}` : ""
   };
 
   /* ================= FETCH STATS ================= */
 
   const fetchStats = useCallback(async () => {
-
     try {
-
       const res = await axios.get(
         `${BASE_URL}/api/leads/stats/summary`,
         { headers }
       );
 
       setStats(res.data);
-
     } catch (err) {
-
       console.log("Stats error:", err);
-
     }
-
-  }, [BASE_URL]);
+  }, [BASE_URL, token]);
 
   /* ================= FETCH MONTHLY ================= */
 
   const fetchMonthly = useCallback(async () => {
-
     try {
-
       const res = await axios.get(
         `${BASE_URL}/api/leads/stats/monthly`,
         { headers }
       );
 
       setMonthly(res.data);
-
     } catch (err) {
-
       console.log("Monthly error:", err);
-
     }
-
-  }, [BASE_URL]);
+  }, [BASE_URL, token]);
 
   /* ================= FETCH SCHEDULE ================= */
 
   const fetchSchedule = useCallback(async () => {
-
     try {
-
       const res = await axios.get(
         `${BASE_URL}/api/activities/today`,
         { headers }
       );
 
       setSchedule(res.data);
-
     } catch (err) {
-
       console.log("Schedule error:", err);
-
     }
-
-  }, [BASE_URL]);
+  }, [BASE_URL, token]);
 
   useEffect(() => {
-
     const loadDashboard = async () => {
-
       setLoading(true);
 
       await Promise.all([
@@ -178,11 +151,9 @@ export default function Dashboard() {
       ]);
 
       setLoading(false);
-
     };
 
     loadDashboard();
-
   }, [fetchStats, fetchMonthly, fetchSchedule]);
 
   /* ================= FILTER ONLY TODAY ================= */
@@ -190,7 +161,6 @@ export default function Dashboard() {
   const today = new Date();
 
   const todayActivities = schedule.filter(item => {
-
     const activityDate =
       item.activityDateTime || item.nextFollowUpDate;
 
@@ -203,13 +173,11 @@ export default function Dashboard() {
       d.getMonth() === today.getMonth() &&
       d.getFullYear() === today.getFullYear()
     );
-
   });
 
   /* ================= PIE CHART ================= */
 
   const pieData = {
-
     labels: [
       "New",
       "Follow Up",
@@ -242,15 +210,15 @@ export default function Dashboard() {
         ]
       }
     ]
-
   };
 
   /* ================= BAR CHART ================= */
 
   const barData = {
-
     labels: monthly.map(m =>
-      new Date(0, m._id - 1).toLocaleString("default", { month: "short" })
+      new Date(0, m._id - 1).toLocaleString("default", {
+        month: "short"
+      })
     ),
 
     datasets: [
@@ -260,27 +228,22 @@ export default function Dashboard() {
         backgroundColor: "#6366f1"
       }
     ]
-
   };
 
   if (loading) {
-
     return (
       <div className="dashboard">
         <p>Loading dashboard...</p>
       </div>
     );
-
   }
 
   return (
-
     <div className="dashboard">
 
       {/* ================= TABS ================= */}
 
       <div className="tabs">
-
         <Tab
           icon={<FiUsers />}
           label="Lead Summary"
@@ -301,15 +264,12 @@ export default function Dashboard() {
           active={activeTab === "dashboard"}
           onClick={() => setActiveTab("dashboard")}
         />
-
       </div>
 
       {/* ================= SUMMARY ================= */}
 
       {activeTab === "summary" && (
-
         <div className="kpiWrapper">
-
           <KpiCard title="All Leads" value={stats.total} />
           <KpiCard title="New Leads" value={stats.new} />
           <KpiCard title="Follow Up" value={stats.followup} />
@@ -318,27 +278,19 @@ export default function Dashboard() {
           <KpiCard title="Closed" value={stats.closed} />
           <KpiCard title="Site Visit Planned" value={stats.site_visit_planned} />
           <KpiCard title="Site Visit Done" value={stats.site_visit_done} />
-
         </div>
-
       )}
 
       {/* ================= TODAY SCHEDULE ================= */}
 
       {activeTab === "schedule" && (
-
         <div className="contentCard">
-
           <h3>Today's Schedule</h3>
 
           {todayActivities.length === 0 ? (
-
             <p>No activities scheduled for today.</p>
-
           ) : (
-
             todayActivities.map((item, i) => (
-
               <div
                 key={i}
                 className="scheduleItem"
@@ -351,15 +303,12 @@ export default function Dashboard() {
                   cursor: "pointer"
                 }}
               >
-
                 <div style={{ display: "flex", gap: "10px" }}>
-
                   <div style={{ marginTop: "3px" }}>
                     {getActivityIcon(item.activityType)}
                   </div>
 
                   <div>
-
                     <div style={{ fontWeight: "600" }}>
                       {item.leadName || "Lead"}
                     </div>
@@ -367,9 +316,7 @@ export default function Dashboard() {
                     <div style={{ fontSize: "13px", color: "#777" }}>
                       {item.activityType}
                     </div>
-
                   </div>
-
                 </div>
 
                 <div style={{ fontSize: "13px", color: "#999" }}>
@@ -378,85 +325,57 @@ export default function Dashboard() {
                     item.nextFollowUpDate
                   )}
                 </div>
-
               </div>
-
             ))
-
           )}
-
         </div>
-
       )}
 
       {/* ================= DASHBOARD ================= */}
 
       {activeTab === "dashboard" && (
-
         <div className="chartSection">
-
           <div className="chartCard">
-
             <h3>Status Distribution</h3>
             <Pie data={pieData} />
-
           </div>
 
           <div className="chartCard">
-
             <h3>Monthly Leads</h3>
             <Bar data={barData} />
-
           </div>
-
         </div>
-
       )}
-
     </div>
-
   );
-
 }
 
 /* ================= TAB ================= */
 
 function Tab({ icon, label, active, onClick }) {
-
   return (
-
     <div
       onClick={onClick}
       className={active ? "tab activeTab" : "tab"}
     >
-
       {icon}
       <span>{label}</span>
-
     </div>
-
   );
-
 }
 
 /* ================= KPI CARD ================= */
 
 function KpiCard({ title, value }) {
-
   const [count, setCount] = React.useState(0);
 
   React.useEffect(() => {
-
     let start = 0;
-
     const end = value || 0;
-
     const duration = 800;
-
     const increment = end / (duration / 20);
 
     const timer = setInterval(() => {
-
       start += increment;
 
       if (start >= end) {
@@ -473,14 +392,9 @@ function KpiCard({ title, value }) {
   }, [value]);
 
   return (
-
     <div className="kpiCard">
-
       <h4>{title}</h4>
       <p className="kpiValue">{count}</p>
-
     </div>
-
   );
-
 }

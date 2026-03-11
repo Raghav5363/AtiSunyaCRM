@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { FiUsers, FiCalendar, FiBarChart2 } from "react-icons/fi";
+import {
+  FiUsers,
+  FiCalendar,
+  FiBarChart2,
+  FiPhone,
+  FiMail,
+  FiMessageCircle
+} from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 import {
   Chart as ChartJS,
@@ -24,7 +32,50 @@ ChartJS.register(
   BarElement
 );
 
+/* ================= DATE FORMAT ================= */
+
+const formatDateTime = (date) => {
+
+  if (!date) return "--";
+
+  const d = new Date(date);
+
+  if (isNaN(d)) return "--";
+
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+};
+
+/* ================= ACTIVITY ICON ================= */
+
+const getActivityIcon = (type) => {
+
+  switch (type) {
+
+    case "call":
+      return <FiPhone size={16} />;
+
+    case "email":
+      return <FiMail size={16} />;
+
+    case "whatsapp":
+      return <FiMessageCircle size={16} />;
+
+    default:
+      return <FiCalendar size={16} />;
+
+  }
+
+};
+
 export default function Dashboard() {
+
+  const navigate = useNavigate();
 
   const [stats, setStats] = useState({
     total: 0,
@@ -54,43 +105,64 @@ export default function Dashboard() {
   /* ================= FETCH STATS ================= */
 
   const fetchStats = useCallback(async () => {
+
     try {
+
       const res = await axios.get(
         `${BASE_URL}/api/leads/stats/summary`,
         { headers }
       );
+
       setStats(res.data);
+
     } catch (err) {
+
       console.log("Stats error:", err);
+
     }
+
   }, [BASE_URL]);
 
   /* ================= FETCH MONTHLY ================= */
 
   const fetchMonthly = useCallback(async () => {
+
     try {
+
       const res = await axios.get(
         `${BASE_URL}/api/leads/stats/monthly`,
         { headers }
       );
+
       setMonthly(res.data);
+
     } catch (err) {
+
       console.log("Monthly error:", err);
+
     }
+
   }, [BASE_URL]);
 
   /* ================= FETCH SCHEDULE ================= */
 
   const fetchSchedule = useCallback(async () => {
+
     try {
+
       const res = await axios.get(
         `${BASE_URL}/api/activities/today`,
         { headers }
       );
+
       setSchedule(res.data);
+
     } catch (err) {
+
       console.log("Schedule error:", err);
+
     }
+
   }, [BASE_URL]);
 
   useEffect(() => {
@@ -113,10 +185,31 @@ export default function Dashboard() {
 
   }, [fetchStats, fetchMonthly, fetchSchedule]);
 
+  /* ================= FILTER ONLY TODAY ================= */
+
+  const today = new Date();
+
+  const todayActivities = schedule.filter(item => {
+
+    const activityDate =
+      item.activityDateTime || item.nextFollowUpDate;
+
+    if (!activityDate) return false;
+
+    const d = new Date(activityDate);
+
+    return (
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+
+  });
 
   /* ================= PIE CHART ================= */
 
   const pieData = {
+
     labels: [
       "New",
       "Follow Up",
@@ -126,6 +219,7 @@ export default function Dashboard() {
       "Site Visit Planned",
       "Site Visit Done"
     ],
+
     datasets: [
       {
         data: [
@@ -148,15 +242,17 @@ export default function Dashboard() {
         ]
       }
     ]
-  };
 
+  };
 
   /* ================= BAR CHART ================= */
 
   const barData = {
+
     labels: monthly.map(m =>
       new Date(0, m._id - 1).toLocaleString("default", { month: "short" })
     ),
+
     datasets: [
       {
         label: "Leads",
@@ -164,21 +260,24 @@ export default function Dashboard() {
         backgroundColor: "#6366f1"
       }
     ]
+
   };
 
-
   if (loading) {
+
     return (
       <div className="dashboard">
         <p>Loading dashboard...</p>
       </div>
     );
-  }
 
+  }
 
   return (
 
     <div className="dashboard">
+
+      {/* ================= TABS ================= */}
 
       <div className="tabs">
 
@@ -205,12 +304,13 @@ export default function Dashboard() {
 
       </div>
 
+      {/* ================= SUMMARY ================= */}
 
       {activeTab === "summary" && (
 
         <div className="kpiWrapper">
 
-          <KpiCard title="All Lead" value={stats.total} />
+          <KpiCard title="All Leads" value={stats.total} />
           <KpiCard title="New Leads" value={stats.new} />
           <KpiCard title="Follow Up" value={stats.followup} />
           <KpiCard title="Not Interested" value={stats.not_interested} />
@@ -223,6 +323,7 @@ export default function Dashboard() {
 
       )}
 
+      {/* ================= TODAY SCHEDULE ================= */}
 
       {activeTab === "schedule" && (
 
@@ -230,29 +331,65 @@ export default function Dashboard() {
 
           <h3>Today's Schedule</h3>
 
-          {schedule.length === 0 ? (
-            <p>No followups today.</p>
+          {todayActivities.length === 0 ? (
+
+            <p>No activities scheduled for today.</p>
+
           ) : (
-            schedule.map((item, i) => (
-              <div key={i} className="scheduleItem">
 
-                <b>{item.leadName || "Lead"}</b>
+            todayActivities.map((item, i) => (
 
-                {" - "}
+              <div
+                key={i}
+                className="scheduleItem"
+                onClick={() => navigate("/leads")}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "14px",
+                  borderBottom: "1px solid #eee",
+                  cursor: "pointer"
+                }}
+              >
 
-                {new Date(item.time).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })}
+                <div style={{ display: "flex", gap: "10px" }}>
+
+                  <div style={{ marginTop: "3px" }}>
+                    {getActivityIcon(item.activityType)}
+                  </div>
+
+                  <div>
+
+                    <div style={{ fontWeight: "600" }}>
+                      {item.leadName || "Lead"}
+                    </div>
+
+                    <div style={{ fontSize: "13px", color: "#777" }}>
+                      {item.activityType}
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <div style={{ fontSize: "13px", color: "#999" }}>
+                  {formatDateTime(
+                    item.activityDateTime ||
+                    item.nextFollowUpDate
+                  )}
+                </div>
 
               </div>
+
             ))
+
           )}
 
         </div>
 
       )}
 
+      {/* ================= DASHBOARD ================= */}
 
       {activeTab === "dashboard" && (
 
@@ -282,7 +419,6 @@ export default function Dashboard() {
 
 }
 
-
 /* ================= TAB ================= */
 
 function Tab({ icon, label, active, onClick }) {
@@ -302,7 +438,6 @@ function Tab({ icon, label, active, onClick }) {
   );
 
 }
-
 
 /* ================= KPI CARD ================= */
 
@@ -336,7 +471,6 @@ function KpiCard({ title, value }) {
     return () => clearInterval(timer);
 
   }, [value]);
-
 
   return (
 

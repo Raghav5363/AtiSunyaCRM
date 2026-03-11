@@ -68,6 +68,7 @@ const getActivityIcon = (type) => {
 };
 
 export default function Dashboard() {
+
   const navigate = useNavigate();
 
   const [stats, setStats] = useState({
@@ -91,57 +92,85 @@ export default function Dashboard() {
   const BASE_URL =
     process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  const headers = {
-    Authorization: token ? `Bearer ${token}` : ""
-  };
-
   /* ================= FETCH STATS ================= */
 
   const fetchStats = useCallback(async () => {
+
     try {
+
       const res = await axios.get(
         `${BASE_URL}/api/leads/stats/summary`,
-        { headers }
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : ""
+          }
+        }
       );
 
       setStats(res.data);
+
     } catch (err) {
+
       console.log("Stats error:", err);
+
     }
+
   }, [BASE_URL, token]);
 
   /* ================= FETCH MONTHLY ================= */
 
   const fetchMonthly = useCallback(async () => {
+
     try {
+
       const res = await axios.get(
         `${BASE_URL}/api/leads/stats/monthly`,
-        { headers }
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : ""
+          }
+        }
       );
 
       setMonthly(res.data);
+
     } catch (err) {
+
       console.log("Monthly error:", err);
+
     }
+
   }, [BASE_URL, token]);
 
   /* ================= FETCH SCHEDULE ================= */
 
   const fetchSchedule = useCallback(async () => {
+
     try {
+
       const res = await axios.get(
         `${BASE_URL}/api/activities/today`,
-        { headers }
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : ""
+          }
+        }
       );
 
       setSchedule(res.data);
+
     } catch (err) {
+
       console.log("Schedule error:", err);
+
     }
+
   }, [BASE_URL, token]);
 
   useEffect(() => {
+
     const loadDashboard = async () => {
+
       setLoading(true);
 
       await Promise.all([
@@ -151,9 +180,11 @@ export default function Dashboard() {
       ]);
 
       setLoading(false);
+
     };
 
     loadDashboard();
+
   }, [fetchStats, fetchMonthly, fetchSchedule]);
 
   /* ================= FILTER ONLY TODAY ================= */
@@ -161,6 +192,7 @@ export default function Dashboard() {
   const today = new Date();
 
   const todayActivities = schedule.filter(item => {
+
     const activityDate =
       item.activityDateTime || item.nextFollowUpDate;
 
@@ -173,6 +205,7 @@ export default function Dashboard() {
       d.getMonth() === today.getMonth() &&
       d.getFullYear() === today.getFullYear()
     );
+
   });
 
   /* ================= PIE CHART ================= */
@@ -241,9 +274,8 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
 
-      {/* ================= TABS ================= */}
-
       <div className="tabs">
+
         <Tab
           icon={<FiUsers />}
           label="Lead Summary"
@@ -264,9 +296,8 @@ export default function Dashboard() {
           active={activeTab === "dashboard"}
           onClick={() => setActiveTab("dashboard")}
         />
-      </div>
 
-      {/* ================= SUMMARY ================= */}
+      </div>
 
       {activeTab === "summary" && (
         <div className="kpiWrapper">
@@ -281,10 +312,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ================= TODAY SCHEDULE ================= */}
-
       {activeTab === "schedule" && (
         <div className="contentCard">
+
           <h3>Today's Schedule</h3>
 
           {todayActivities.length === 0 ? (
@@ -295,14 +325,8 @@ export default function Dashboard() {
                 key={i}
                 className="scheduleItem"
                 onClick={() => navigate("/leads")}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "14px",
-                  borderBottom: "1px solid #eee",
-                  cursor: "pointer"
-                }}
               >
+
                 <div style={{ display: "flex", gap: "10px" }}>
                   <div style={{ marginTop: "3px" }}>
                     {getActivityIcon(item.activityType)}
@@ -325,16 +349,17 @@ export default function Dashboard() {
                     item.nextFollowUpDate
                   )}
                 </div>
+
               </div>
             ))
           )}
+
         </div>
       )}
 
-      {/* ================= DASHBOARD ================= */}
-
       {activeTab === "dashboard" && (
         <div className="chartSection">
+
           <div className="chartCard">
             <h3>Status Distribution</h3>
             <Pie data={pieData} />
@@ -344,8 +369,10 @@ export default function Dashboard() {
             <h3>Monthly Leads</h3>
             <Bar data={barData} />
           </div>
+
         </div>
       )}
+
     </div>
   );
 }
@@ -367,15 +394,18 @@ function Tab({ icon, label, active, onClick }) {
 /* ================= KPI CARD ================= */
 
 function KpiCard({ title, value }) {
+
   const [count, setCount] = React.useState(0);
 
   React.useEffect(() => {
+
     let start = 0;
     const end = value || 0;
     const duration = 800;
     const increment = end / (duration / 20);
 
     const timer = setInterval(() => {
+
       start += increment;
 
       if (start >= end) {

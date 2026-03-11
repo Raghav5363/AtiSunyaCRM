@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -28,7 +28,7 @@ headers:{ Authorization:`Bearer ${token}` }
 
 /* ================= LOAD DATA ================= */
 
-const loadLead = async()=>{
+const loadLead = useCallback(async()=>{
 try{
 const res = await axios.get(
 `${BASE_URL}/api/leads/${id}`,
@@ -38,9 +38,9 @@ setLead(res.data);
 }catch{
 toast.error("Failed to load lead");
 }
-};
+},[BASE_URL,id,authConfig]);
 
-const loadActivities = async()=>{
+const loadActivities = useCallback(async()=>{
 try{
 const res = await axios.get(
 `${BASE_URL}/api/activities/${id}`,
@@ -50,12 +50,12 @@ setActivities(res.data);
 }catch{
 toast.error("Failed to load activities");
 }
-};
+},[BASE_URL,id,authConfig]);
 
 useEffect(()=>{
 loadLead();
 loadActivities();
-},[id]);
+},[loadLead,loadActivities]);
 
 /* ================= ADD ACTIVITY ================= */
 
@@ -80,7 +80,7 @@ nextFollowUpDate
 authConfig
 );
 
-setActivities([res.data,...activities]);
+setActivities(prev=>[res.data,...prev]);
 
 setOutcome("");
 setNotes("");
@@ -99,7 +99,7 @@ toast.error("Error adding activity");
 
 if(!lead) return <div style={{padding:40}}>Loading...</div>;
 
-const cleanNumber = lead.phone.replace(/\D/g,"");
+const cleanNumber = lead.phone ? lead.phone.replace(/\D/g,"") : "";
 
 /* ================= FOLLOWUP STATUS ================= */
 
@@ -116,7 +116,6 @@ d.setHours(0,0,0,0);
 const diff = d - today;
 
 if(diff === 0) return {label:"Today",color:"#ffc107"};
-
 if(diff > 0) return {label:"Upcoming",color:"#17a2b8"};
 
 return {label:"Past",color:"#6c757d"};
@@ -176,7 +175,6 @@ style={{...styles.iconBtn,background:"#25D366",color:"white"}}
 <div style={styles.details}>
 
 <p><b>Email:</b> {lead.email}</p>
-
 <p><b>Phone:</b> {lead.phone}</p>
 
 <p>
@@ -371,9 +369,7 @@ alignItems:"center",
 marginBottom:"20px"
 },
 
-name:{
-margin:0
-},
+name:{ margin:0 },
 
 contactButtons:{
 display:"flex",

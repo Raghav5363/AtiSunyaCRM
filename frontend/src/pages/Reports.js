@@ -32,7 +32,7 @@ export default function Reports() {
   const token = localStorage.getItem("token");
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  const reportRef = useRef();
+  const reportRef = useRef(null);
 
   /* ================= FETCH ================= */
 
@@ -42,12 +42,11 @@ export default function Reports() {
         `${BASE_URL}/api/leads/stats/monthly`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setMonthly(res.data);
+      setMonthly(res.data || []);
     } catch (err) {
       console.log(err);
     }
   }, [BASE_URL, token]);
-
 
   const fetchTeam = useCallback(async () => {
     try {
@@ -55,12 +54,11 @@ export default function Reports() {
         `${BASE_URL}/api/leads/stats/team`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setTeam(res.data);
+      setTeam(res.data || []);
     } catch (err) {
       console.log(err);
     }
   }, [BASE_URL, token]);
-
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -68,12 +66,11 @@ export default function Reports() {
         `${BASE_URL}/api/leads/stats/summary`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setSummary(res.data);
+      setSummary(res.data || {});
     } catch (err) {
       console.log(err);
     }
   }, [BASE_URL, token]);
-
 
   useEffect(() => {
     fetchMonthly();
@@ -81,12 +78,13 @@ export default function Reports() {
     fetchSummary();
   }, [fetchMonthly, fetchTeam, fetchSummary]);
 
-
   /* ================= PDF DOWNLOAD ================= */
 
   const downloadPDF = async () => {
 
     const element = reportRef.current;
+
+    if (!element) return;
 
     const canvas = await html2canvas(element);
 
@@ -95,7 +93,6 @@ export default function Reports() {
     const pdf = new jsPDF("p","mm","a4");
 
     const imgWidth = 210;
-    const pageHeight = 295;
 
     const imgHeight = canvas.height * imgWidth / canvas.width;
 
@@ -188,11 +185,8 @@ marginTop:30
 }}>
 
 <Card title="Total Leads" value={summary.total} />
-
 <Card title="New Leads" value={summary.new} />
-
 <Card title="Followups" value={summary.followup} />
-
 <Card title="Closed Deals" value={summary.closed} />
 
 </div>

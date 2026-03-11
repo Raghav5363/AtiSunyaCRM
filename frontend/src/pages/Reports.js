@@ -102,7 +102,6 @@ export default function Reports() {
 
   };
 
-
   /* ================= CHART DATA ================= */
 
   const monthlyData = {
@@ -115,19 +114,6 @@ export default function Reports() {
       }
     ]
   };
-
-
-  const teamData = {
-    labels: team.map(t => t.user?.email || "User"),
-    datasets: [
-      {
-        label: "Converted Leads",
-        data: team.map(t => t.converted),
-        backgroundColor: "#22c55e"
-      }
-    ]
-  };
-
 
   const pieData = {
     labels:["New","FollowUp","Closed","Junk"],
@@ -148,7 +134,6 @@ export default function Reports() {
       }
     ]
   };
-
 
   return (
 
@@ -171,9 +156,7 @@ marginTop:10
 Download PDF Report
 </button>
 
-
 <div ref={reportRef}>
-
 
 {/* ================= KPI CARDS ================= */}
 
@@ -190,7 +173,6 @@ marginTop:30
 <Card title="Closed Deals" value={summary.closed} />
 
 </div>
-
 
 {/* ================= CHARTS ================= */}
 
@@ -212,7 +194,6 @@ marginTop:40
 </div>
 
 </div>
-
 
 {/* ================= TEAM PERFORMANCE ================= */}
 
@@ -244,15 +225,12 @@ marginTop:40
 
 </div>
 
-
 </div>
 
 </div>
 
   );
 }
-
-
 
 /* ================= COMPONENTS ================= */
 
@@ -283,15 +261,12 @@ marginTop:10
 
 }
 
-
-
 const chartCard={
 background:"#fff",
 padding:20,
 borderRadius:10,
 boxShadow:"0 4px 12px rgba(0,0,0,0.08)"
 }
-
 
 const tableStyle={
 width:"100%",

@@ -18,33 +18,31 @@ const app = express();
 console.log("MONGO_URI from ENV:", process.env.MONGO_URI);
 
 /* =========================
-   CORS
+   CORS (ALLOW ALL ORIGINS)
+   Fixes Vercel + Render issues
 ========================= */
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://ati-sunya-crm-custom.vercel.app",
-    ],
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-
-
+/* =========================
+   BODY PARSER
+========================= */
 app.use(express.json());
 
 /* =========================
    HEALTH CHECK ROUTE
-   (Deployment platforms use this)
 ========================= */
 app.get("/", (req, res) => {
   res.send("CRM API Running ✅");
 });
 
 /* =========================
-   ROUTES
+   API ROUTES
 ========================= */
 app.use("/api/auth", authRoutes);
 app.use("/api/leads", leadRoutes);
@@ -53,13 +51,10 @@ app.use("/api/activities", activityRoutes);
 app.use("/api/followups", followupRoutes);
 
 /* =========================
-   DATABASE
+   DATABASE CONNECTION
 ========================= */
 mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => {
     console.log("❌ MongoDB ERROR:");
@@ -68,18 +63,19 @@ mongoose
 
 /* =========================
    GLOBAL ERROR HANDLER
-   (Professional touch)
 ========================= */
 app.use((err, req, res, next) => {
   console.error("🔥 Server Error:", err.stack);
-  res.status(500).send("Something broke!");
+  res.status(500).json({
+    message: "Internal Server Error",
+  });
 });
 
 /* =========================
-   SERVER
+   SERVER START
 ========================= */
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});

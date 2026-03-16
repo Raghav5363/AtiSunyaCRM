@@ -1,9 +1,12 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 function Login() {
+
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,10 +26,8 @@ function Login() {
 
       const res = await fetch(`${BASE_URL}/api/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email, password })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
@@ -43,7 +44,7 @@ function Login() {
         localStorage.setItem("role", data.role);
         localStorage.setItem("userId", data.id);
 
-        window.location.href = "/dashboard";
+        navigate("/dashboard");
 
       }
 
@@ -61,18 +62,21 @@ function Login() {
 
     <div style={styles.page}>
 
+      {/* BACK BUTTON */}
+      <div style={styles.backButton} onClick={() => navigate("/")}>
+        ← Back
+      </div>
+
       <div style={styles.wrapper}>
 
         {/* LOGO */}
-
         <img
-          src="/InfratechLogo.png"
+          src="/aspl-new-logo-1.jpg"
           alt="AtiSunya Infratech"
           style={styles.logo}
         />
 
         {/* LOGIN CARD */}
-
         <div style={styles.card}>
 
           <h2 style={styles.title}>Sign in</h2>
@@ -120,15 +124,13 @@ function Login() {
                 opacity: loading ? 0.7 : 1
               }}
             >
-
               {loading ? "Signing in..." : "Sign In"}
-
             </button>
 
           </form>
 
           <p style={styles.footer}>
-            © 2026 AtiSunya Pvt Ltd
+            © 2026 AtiSunya Infratech Pvt Ltd
           </p>
 
         </div>
@@ -153,7 +155,18 @@ justifyContent:"center",
 alignItems:"center",
 background:"#f1f5f9",
 fontFamily:"Inter, Segoe UI, sans-serif",
-padding:"20px"
+padding:"20px",
+position:"relative"
+},
+
+backButton:{
+position:"absolute",
+top:20,
+left:20,
+cursor:"pointer",
+fontSize:16,
+fontWeight:600,
+color:"#2563eb"
 },
 
 wrapper:{
@@ -164,8 +177,7 @@ textAlign:"center"
 
 logo:{
 height:"55px",
-marginBottom:"20px",
-objectFit:"contain"
+marginBottom:"20px"
 },
 
 card:{
@@ -212,8 +224,7 @@ border:"none",
 borderRadius:"8px",
 fontWeight:"600",
 cursor:"pointer",
-fontSize:"15px",
-marginTop:"5px"
+fontSize:"15px"
 },
 
 error:{

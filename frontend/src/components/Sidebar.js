@@ -16,16 +16,17 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   const [isMobile, setIsMobile] = useState(false);
 
-  /* ===== SCREEN CHECK ===== */
-
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
-  /* ===== TOKEN SAFE ===== */
+    const check = () => setIsMobile(window.innerWidth < 768);
+
+    check();
+
+    window.addEventListener("resize", check);
+
+    return () => window.removeEventListener("resize", check);
+
+  }, []);
 
   const token = localStorage.getItem("token");
 
@@ -38,8 +39,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       console.error("Invalid token");
     }
   }
-
-  /* ===== CSV UPLOAD ===== */
 
   const handleCSVUpload = async (e) => {
 
@@ -66,17 +65,19 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
       e.target.value = "";
 
-      navigate("/leads");
+      navigate("/leads", { replace: true });
 
-    } catch {
+      window.location.reload();
+
+    } catch (err) {
+
+      console.error(err);
 
       toast.error("Upload failed");
 
     }
 
   };
-
-  /* ===== LOGOUT ===== */
 
   const logout = () => {
 
@@ -87,8 +88,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     navigate("/login");
 
   };
-
-  /* ===== MENU ===== */
 
   const menu = [
 
@@ -134,8 +133,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
     <>
 
-      {/* ===== OVERLAY ===== */}
-
       {isMobile && isOpen && (
 
         <div
@@ -154,8 +151,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
         <div>
 
-          {/* ===== LOGO ===== */}
-
           <div style={{ textAlign: "center", marginBottom: 30 }}>
 
             <img
@@ -165,8 +160,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             />
 
           </div>
-
-          {/* ===== MENU ===== */}
 
           {menu.map((item) => {
 
@@ -189,7 +182,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                   background: active ? "#2563eb" : "transparent",
                   color: active ? "white" : "#374151",
                   fontWeight: 500,
-                  transition: "0.2s",
                 }}
               >
 
@@ -202,8 +194,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             );
 
           })}
-
-          {/* ===== CSV UPLOAD ===== */}
 
           {(user?.role === "admin" ||
             user?.role === "sales_manager") && (
@@ -233,8 +223,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           )}
 
         </div>
-
-        {/* ===== FOOTER ===== */}
 
         <div style={{ fontSize: 13, color: "#6b7280" }}>
 

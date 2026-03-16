@@ -172,7 +172,8 @@ toast.success("Lead created");
 
 }
 
-navigate("/");
+/* ✅ FIXED REDIRECT */
+navigate("/leads");
 
 }catch(err){
 
@@ -193,6 +194,15 @@ return(
 <div style={styles.page}>
 
 <div style={styles.card}>
+
+{/* BACK BUTTON */}
+
+<div
+onClick={()=>navigate(-1)}
+style={styles.backBtn}
+>
+← Back
+</div>
 
 <h2 style={styles.title}>
 {isEdit ? "Edit Lead" : "Add New Lead"}
@@ -363,6 +373,13 @@ background:"#fff",
 padding:"25px",
 borderRadius:"10px",
 boxShadow:"0 4px 14px rgba(0,0,0,0.08)"
+},
+
+backBtn:{
+cursor:"pointer",
+marginBottom:"10px",
+fontWeight:"600",
+color:"#2563eb"
 },
 
 title:{

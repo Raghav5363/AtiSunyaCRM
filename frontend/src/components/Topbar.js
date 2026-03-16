@@ -14,16 +14,21 @@ export default function Topbar({ openSidebar }) {
   );
 
   /* ===== SCREEN CHECK ===== */
+
   useEffect(() => {
+
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
 
     window.addEventListener("resize", handleResize);
+
     return () => window.removeEventListener("resize", handleResize);
+
   }, []);
 
   /* ===== APPLY DARK MODE ===== */
+
   useEffect(() => {
 
     if (darkMode) {
@@ -37,6 +42,7 @@ export default function Topbar({ openSidebar }) {
   }, [darkMode]);
 
   /* ===== TOKEN SAFE DECODE ===== */
+
   let user = null;
 
   try {
@@ -47,14 +53,15 @@ export default function Topbar({ openSidebar }) {
       user = JSON.parse(atob(token.split(".")[1]));
     }
 
-  } catch (err) {
+  } catch {
     console.log("Token decode failed");
   }
 
   /* ===== PAGE TITLES ===== */
 
   const pageTitles = {
-    "/": "Leads Dashboard",
+    "/dashboard": "Dashboard",
+    "/leads": "Leads",
     "/add": "Add Lead",
     "/followups": "Follow Ups",
     "/users": "User Management",
@@ -68,7 +75,14 @@ export default function Topbar({ openSidebar }) {
     if (location.pathname.startsWith("/login")) return "Login";
 
     return pageTitles[location.pathname] || "Dashboard";
+
   };
+
+  /* ===== SHOW BACK BUTTON ===== */
+
+  const showBackButton =
+    location.pathname !== "/dashboard" &&
+    location.pathname !== "/leads";
 
   /* ===== LOGOUT ===== */
 
@@ -96,7 +110,7 @@ export default function Topbar({ openSidebar }) {
       }}
     >
 
-      {/* LEFT SECTION */}
+      {/* LEFT */}
 
       <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
 
@@ -116,6 +130,22 @@ export default function Topbar({ openSidebar }) {
 
         )}
 
+        {showBackButton && (
+
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              fontSize: 18,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            ←
+          </button>
+
+        )}
+
         <div
           style={{
             fontSize: isMobile ? 16 : 20,
@@ -128,7 +158,7 @@ export default function Topbar({ openSidebar }) {
 
       </div>
 
-      {/* RIGHT SECTION */}
+      {/* RIGHT */}
 
       <div
         style={{
@@ -138,7 +168,7 @@ export default function Topbar({ openSidebar }) {
         }}
       >
 
-        {/* DARK MODE TOGGLE */}
+        {/* DARK MODE */}
 
         <button
           onClick={() => setDarkMode(!darkMode)}
@@ -152,8 +182,7 @@ export default function Topbar({ openSidebar }) {
           {darkMode ? "☀️" : "🌙"}
         </button>
 
-
-        {/* ROLE BADGE */}
+        {/* ROLE */}
 
         {!isMobile && user?.role && (
 
@@ -199,4 +228,5 @@ export default function Topbar({ openSidebar }) {
     </div>
 
   );
+
 }

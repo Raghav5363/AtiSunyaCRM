@@ -10,7 +10,7 @@ return (
 <div style={styles.page}>
 
 <img
-src="/aspl-new-logo-1.jpg"
+src="/Atisunya.logo.png"
 alt="AtiSunya"
 style={styles.logo}
 />

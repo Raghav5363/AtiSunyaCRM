@@ -11,7 +11,10 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
-import Reports from "./pages/Reports"; // ✅ ADDED
+import Reports from "./pages/Reports";
+
+/* NEW INTRO SCREEN */
+import MobileIntro from "./pages/MobileIntro";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -21,12 +24,15 @@ export default function App() {
     <Router>
       <Routes>
 
+        {/* INTRO SCREEN */}
+        <Route path="/" element={<MobileIntro />} />
+
         {/* LOGIN */}
         <Route path="/login" element={<Login />} />
 
-        {/* DASHBOARD (HOME) */}
+        {/* DASHBOARD */}
         <Route
-          path="/"
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Layout>
@@ -108,7 +114,7 @@ export default function App() {
           }
         />
 
-        {/* ✅ REPORTS PAGE */}
+        {/* REPORTS */}
         <Route
           path="/reports"
           element={
@@ -123,6 +129,7 @@ export default function App() {
       </Routes>
 
       <ToastContainer position="top-center" autoClose={2000} />
+
     </Router>
   );
 }

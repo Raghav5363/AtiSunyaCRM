@@ -9,6 +9,7 @@ const BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 export default function Sidebar({ isOpen, setIsOpen }) {
+
   const location = useLocation();
   const navigate = useNavigate();
   const fileInputRef = useRef();
@@ -16,6 +17,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const [isMobile, setIsMobile] = useState(false);
 
   /* ===== SCREEN CHECK ===== */
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -24,9 +26,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   }, []);
 
   /* ===== TOKEN SAFE ===== */
+
   const token = localStorage.getItem("token");
 
   let user = null;
+
   if (token) {
     try {
       user = JSON.parse(atob(token.split(".")[1]));
@@ -36,14 +40,18 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   }
 
   /* ===== CSV UPLOAD ===== */
+
   const handleCSVUpload = async (e) => {
+
     const file = e.target.files[0];
+
     if (!file) return;
 
     const formData = new FormData();
     formData.append("file", file);
 
     try {
+
       await axios.post(
         `${BASE_URL}/api/leads/bulk-upload`,
         formData,
@@ -55,24 +63,39 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       );
 
       toast.success("CSV Uploaded Successfully");
+
       e.target.value = "";
+
       navigate("/leads");
+
     } catch {
+
       toast.error("Upload failed");
+
     }
+
   };
 
   /* ===== LOGOUT ===== */
+
   const logout = () => {
+
     localStorage.clear();
+
     toast.success("Logged out");
+
     navigate("/login");
+
   };
 
   /* ===== MENU ===== */
+
   const menu = [
-    { name: "Dashboard", path: "/", icon: "📊" },
+
+    { name: "Dashboard", path: "/dashboard", icon: "📊" },
+
     { name: "Leads", path: "/leads", icon: "👥" },
+
     { name: "Follow Ups", path: "/followups", icon: "📅" },
 
     ...(user?.role === "admin" || user?.role === "sales_manager"
@@ -86,9 +109,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     ...(user?.role !== "sales_agent"
       ? [{ name: "Reports", path: "/reports", icon: "📈" }]
       : []),
+
   ];
 
   const sidebarStyle = {
+
     width: SIDEBAR_WIDTH,
     background: "#ffffff",
     borderRight: "1px solid #e5e7eb",
@@ -102,12 +127,17 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     left: isMobile ? (isOpen ? 0 : -SIDEBAR_WIDTH) : 0,
     transition: "0.3s",
     zIndex: 1000,
+
   };
 
   return (
+
     <>
+
       {/* ===== OVERLAY ===== */}
+
       {isMobile && isOpen && (
+
         <div
           onClick={() => setIsOpen(false)}
           style={{
@@ -117,24 +147,33 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             zIndex: 999,
           }}
         />
+
       )}
 
       <div style={sidebarStyle}>
+
         <div>
+
           {/* ===== LOGO ===== */}
+
           <div style={{ textAlign: "center", marginBottom: 30 }}>
+
             <img
               src="/InfratechLogo.png"
               alt="logo"
               style={{ width: 140 }}
             />
+
           </div>
 
           {/* ===== MENU ===== */}
+
           {menu.map((item) => {
+
             const active = location.pathname === item.path;
 
             return (
+
               <Link
                 key={item.path}
                 to={item.path}
@@ -153,15 +192,22 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                   transition: "0.2s",
                 }}
               >
+
                 <span>{item.icon}</span>
+
                 {item.name}
+
               </Link>
+
             );
+
           })}
 
           {/* ===== CSV UPLOAD ===== */}
+
           {(user?.role === "admin" ||
             user?.role === "sales_manager") && (
+
             <div
               onClick={() => fileInputRef.current.click()}
               style={{
@@ -171,7 +217,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 color: "#374151",
               }}
             >
+
               ⧉ Upload CSV
+
               <input
                 hidden
                 type="file"
@@ -179,13 +227,19 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 ref={fileInputRef}
                 onChange={handleCSVUpload}
               />
+
             </div>
+
           )}
+
         </div>
 
         {/* ===== FOOTER ===== */}
+
         <div style={{ fontSize: 13, color: "#6b7280" }}>
+
           Logged in as <br />
+
           <b>{user?.role || "User"}</b>
 
           <div
@@ -197,13 +251,17 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               fontWeight: 600,
             }}
           >
+
             🚪 Logout
+
           </div>
+
         </div>
+
       </div>
+
     </>
+
   );
+
 }
-
-
-//Sidebar Updated

@@ -71,7 +71,7 @@ function Login() {
 
         {/* LOGO */}
         <img
-          src="/aspl-new-logo-1.jpg"
+          src="/InfratechLogo.png"
           alt="AtiSunya Infratech"
           style={styles.logo}
         />
@@ -130,7 +130,7 @@ function Login() {
           </form>
 
           <p style={styles.footer}>
-            © 2026 AtiSunya Infratech Pvt Ltd
+            © 2026 AtiSunya Pvt Ltd
           </p>
 
         </div>

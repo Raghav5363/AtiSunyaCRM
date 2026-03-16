@@ -21,14 +21,13 @@ function Login() {
 
     try {
 
-      const res = await fetch(
-        `${BASE_URL}/api/auth/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        }
-      );
+      const res = await fetch(`${BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
 
       const data = await res.json();
 
@@ -44,7 +43,6 @@ function Login() {
         localStorage.setItem("role", data.role);
         localStorage.setItem("userId", data.id);
 
-        /* REDIRECT */
         window.location.href = "/dashboard";
 
       }
@@ -63,20 +61,17 @@ function Login() {
 
     <div style={styles.page}>
 
-      {/* TOP LOGO */}
+      <div style={styles.wrapper}>
 
-      <div style={styles.topbar}>
+        {/* LOGO */}
+
         <img
-          src="/InfratechLogo.png"
+          src="/aspl-new-logo-1.jpg"
           alt="AtiSunya Infratech"
           style={styles.logo}
         />
-      </div>
 
-
-      {/* LOGIN AREA */}
-
-      <div style={styles.container}>
+        {/* LOGIN CARD */}
 
         <div style={styles.card}>
 
@@ -86,11 +81,9 @@ function Login() {
             Welcome back! Please login
           </p>
 
-
           {error && (
             <div style={styles.error}>{error}</div>
           )}
-
 
           <form onSubmit={handleLogin}>
 
@@ -107,7 +100,6 @@ function Login() {
               style={styles.input}
             />
 
-
             <label style={styles.label}>
               Password
             </label>
@@ -120,7 +112,6 @@ function Login() {
               required
               style={styles.input}
             />
-
 
             <button
               disabled={loading}
@@ -136,9 +127,8 @@ function Login() {
 
           </form>
 
-
           <p style={styles.footer}>
-            © 2026 AtiSunya Pvt Ltd
+            © 2026 AtiSunya Infratech Pvt Ltd
           </p>
 
         </div>
@@ -158,93 +148,85 @@ const styles = {
 
 page:{
 minHeight:"100vh",
+display:"flex",
+justifyContent:"center",
+alignItems:"center",
+background:"#f1f5f9",
 fontFamily:"Inter, Segoe UI, sans-serif",
-background:"#f1f5f9"
+padding:"20px"
 },
 
-topbar:{
-height:60,
-display:"flex",
-alignItems:"center",
-justifyContent:"center",
-background:"#ffffff",
-borderBottom:"1px solid #e5e7eb",
-padding:"5px 0"
+wrapper:{
+width:"100%",
+maxWidth:"420px",
+textAlign:"center"
 },
 
 logo:{
-height:40,
+height:"55px",
+marginBottom:"20px",
 objectFit:"contain"
-},
-
-container:{
-minHeight:"calc(100vh - 60px)",
-display:"flex",
-justifyContent:"center",
-alignItems:"flex-start",
-paddingTop:40
 },
 
 card:{
 background:"#ffffff",
-padding:35,
-borderRadius:12,
-width:380,
+padding:"32px",
+borderRadius:"12px",
 boxShadow:"0 10px 30px rgba(0,0,0,0.08)"
 },
 
 title:{
-fontSize:26,
-fontWeight:600,
-marginBottom:8
+fontSize:"26px",
+fontWeight:"600",
+marginBottom:"6px"
 },
 
 subtitle:{
 color:"#64748b",
-marginBottom:25
+marginBottom:"25px"
 },
 
 label:{
-fontSize:14,
-fontWeight:600,
+fontSize:"14px",
+fontWeight:"600",
 display:"block",
-marginBottom:6
+marginBottom:"6px",
+textAlign:"left"
 },
 
 input:{
 width:"100%",
-padding:13,
-borderRadius:8,
+padding:"13px",
+borderRadius:"8px",
 border:"1px solid #d1d5db",
-marginBottom:18,
-fontSize:14
+marginBottom:"18px",
+fontSize:"14px"
 },
 
 button:{
 width:"100%",
-padding:14,
+padding:"14px",
 background:"#2563eb",
-color:"white",
+color:"#ffffff",
 border:"none",
-borderRadius:8,
-fontWeight:600,
+borderRadius:"8px",
+fontWeight:"600",
 cursor:"pointer",
-fontSize:15,
-marginTop:10
+fontSize:"15px",
+marginTop:"5px"
 },
 
 error:{
-background:"#fef2f2",
-color:"#dc2626",
-padding:12,
-borderRadius:8,
-marginBottom:15
+background:"#fee2e2",
+color:"#b91c1c",
+padding:"10px",
+borderRadius:"6px",
+marginBottom:"15px"
 },
 
 footer:{
-textAlign:"center",
-marginTop:25,
-fontSize:12,
+marginTop:"20px",
+fontSize:"12px",
 color:"#94a3b8"
 }
 

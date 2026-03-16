@@ -37,7 +37,6 @@ const leadSchema = new mongoose.Schema(
     required: [true, "Email is required"],
     trim: true,
     lowercase: true,
-    unique: true,
 
     validate: {
       validator: emailValidator,
@@ -49,7 +48,6 @@ const leadSchema = new mongoose.Schema(
     type: String,
     required: [true, "Phone number is required"],
     trim: true,
-    unique: true,
 
     validate: {
       validator: phoneValidator,
@@ -76,6 +74,16 @@ const leadSchema = new mongoose.Schema(
   },
 
   /* =========================
+     LEAD PRIORITY
+  ========================= */
+
+  priority: {
+    type: String,
+    enum: ["hot", "warm", "cold"],
+    default: "warm"
+  },
+
+  /* =========================
      LEAD SOURCE
   ========================= */
 
@@ -85,6 +93,45 @@ const leadSchema = new mongoose.Schema(
     trim: true,
     maxlength: 100
   },
+
+  /* =========================
+     CUSTOMER LOCATION
+  ========================= */
+
+  location: {
+    type: String,
+    default: "",
+    trim: true
+  },
+
+  /* =========================
+     CUSTOMER BUDGET
+  ========================= */
+
+  budget: {
+    type: Number,
+    default: 0
+  },
+
+  /* =========================
+     SALES NOTES
+  ========================= */
+
+  notes: {
+    type: String,
+    default: "",
+    maxlength: 2000
+  },
+
+  /* =========================
+     TAGS (marketing)
+  ========================= */
+
+  tags: [
+    {
+      type: String
+    }
+  ],
 
   /* =========================
      LEAD CREATOR
@@ -113,6 +160,15 @@ const leadSchema = new mongoose.Schema(
   nextFollowUpDate: {
     type: Date,
     default: null
+  },
+
+  /* =========================
+     SOFT DELETE
+  ========================= */
+
+  isDeleted: {
+    type: Boolean,
+    default: false
   }
 
 },
@@ -128,5 +184,7 @@ const leadSchema = new mongoose.Schema(
 leadSchema.index({ email: 1 });
 leadSchema.index({ phone: 1 });
 leadSchema.index({ status: 1 });
+leadSchema.index({ assignedTo: 1 });
+leadSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Lead", leadSchema);

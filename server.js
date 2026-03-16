@@ -13,30 +13,33 @@ const followupRoutes = require("./routes/followupRoutes");
 const app = express();
 
 /* =========================
-   DEBUG (CHECK ENV LOAD)
+   DEBUG ENV VARIABLES
 ========================= */
-console.log("MONGO_URI from ENV:", process.env.MONGO_URI);
+
+console.log("MONGO_URI Loaded:", process.env.MONGO_URI ? "YES" : "NO");
 
 /* =========================
-   CORS (ALLOW ALL ORIGINS)
-   Fixes Vercel + Render issues
+   CORS CONFIG
 ========================= */
+
 app.use(
   cors({
     origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 
 /* =========================
    BODY PARSER
 ========================= */
-app.use(express.json());
+
+app.use(express.json({ limit: "10mb" }));
 
 /* =========================
-   HEALTH CHECK ROUTE
+   HEALTH CHECK
 ========================= */
+
 app.get("/", (req, res) => {
   res.send("CRM API Running ✅");
 });
@@ -44,6 +47,7 @@ app.get("/", (req, res) => {
 /* =========================
    API ROUTES
 ========================= */
+
 app.use("/api/auth", authRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/users", userRoutes);
@@ -51,31 +55,52 @@ app.use("/api/activities", activityRoutes);
 app.use("/api/followups", followupRoutes);
 
 /* =========================
-   DATABASE CONNECTION
+   404 HANDLER
 ========================= */
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => {
-    console.log("❌ MongoDB ERROR:");
-    console.log(err.message);
+
+app.use((req, res) => {
+  res.status(404).json({
+    message: "API route not found"
   });
+});
 
 /* =========================
    GLOBAL ERROR HANDLER
 ========================= */
+
 app.use((err, req, res, next) => {
-  console.error("🔥 Server Error:", err.stack);
+
+  console.error("🔥 Server Error:", err);
+
   res.status(500).json({
-    message: "Internal Server Error",
+    message: err.message || "Internal Server Error"
   });
+
 });
 
 /* =========================
-   SERVER START
+   DATABASE CONNECTION
 ========================= */
-const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+mongoose
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
+  .then(() => {
+
+    console.log("✅ MongoDB Connected");
+
+    const PORT = process.env.PORT || 5000;
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+
+  })
+  .catch((err) => {
+
+    console.error("❌ MongoDB Connection Failed");
+    console.error(err);
+
+  });

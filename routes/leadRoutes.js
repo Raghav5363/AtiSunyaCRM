@@ -1,6 +1,7 @@
 console.log("✅ leadRoutes loaded");
 
 const express = require("express");
+const mongoose = require("mongoose");
 const Lead = require("../models/lead");
 const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
@@ -49,7 +50,7 @@ function isValidEmail(email) {
 }
 
 /* =========================
-   PHONE VALIDATION (India)
+   PHONE VALIDATION
 ========================= */
 
 function isValidPhone(phone) {
@@ -82,12 +83,12 @@ router.post(
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      const results = [];
+      const rows = [];
 
       await new Promise((resolve, reject) => {
         fs.createReadStream(req.file.path)
           .pipe(csv())
-          .on("data", (data) => results.push(data))
+          .on("data", (data) => rows.push(data))
           .on("end", resolve)
           .on("error", reject);
       });
@@ -95,7 +96,7 @@ router.post(
       let inserted = 0;
       let skipped = 0;
 
-      for (const row of results) {
+      for (const row of rows) {
 
         if (
           !row.email ||
@@ -133,14 +134,12 @@ router.post(
 
       }
 
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
+      fs.unlinkSync(req.file.path);
 
-      res.status(200).json({
+      res.json({
         message: "CSV upload completed",
         inserted,
-        skipped,
+        skipped
       });
 
     } catch (err) {
@@ -152,6 +151,7 @@ router.post(
       }
 
       res.status(500).json({ message: "CSV upload failed" });
+
     }
   }
 );
@@ -170,31 +170,34 @@ router.post(
 
       const { name, email, phone, status, source, assignedTo } = req.body;
 
-      const lead = new Lead({
+      if (!isValidEmail(email))
+        return res.status(400).json({ message: "Invalid email" });
+
+      if (!isValidPhone(phone))
+        return res.status(400).json({ message: "Invalid phone" });
+
+      const lead = await Lead.create({
         name,
         email,
         phone,
         status: normalizeStatus(status),
         source,
         createdBy: req.user.id,
-        assignedTo: assignedTo || req.user.id,
+        assignedTo: assignedTo || req.user.id
       });
 
-      await lead.save();
-
-      const populatedLead = await Lead.findById(lead._id)
+      const populated = await Lead.findById(lead._id)
         .populate("assignedTo", "email role")
         .populate("createdBy", "email role");
 
-      res.status(201).json(populatedLead);
+      res.status(201).json(populated);
 
     } catch (err) {
 
       console.log("CREATE LEAD ERROR:", err);
 
-      res.status(400).json({
-        message: err.message || "Failed to create lead"
-      });
+      res.status(500).json({ message: "Create lead failed" });
+
     }
   }
 );
@@ -210,7 +213,7 @@ router.get("/", protect, async (req, res) => {
     let filter = {};
 
     if (req.user.role === "sales_agent") {
-      filter.assignedTo = req.user.id;
+      filter.assignedTo = new mongoose.Types.ObjectId(req.user.id);
     }
 
     if (req.user.role === "sales_manager") {
@@ -232,7 +235,7 @@ router.get("/", protect, async (req, res) => {
   } catch (err) {
 
     console.log(err);
-    res.status(500).json({ message: "Failed to fetch leads" });
+    res.status(500).json({ message: "Fetch leads failed" });
 
   }
 });
@@ -248,7 +251,7 @@ router.get("/stats/summary", protect, async (req, res) => {
     let filter = {};
 
     if (req.user.role === "sales_agent") {
-      filter.assignedTo = req.user.id;
+      filter.assignedTo = new mongoose.Types.ObjectId(req.user.id);
     }
 
     if (req.user.role === "sales_manager") {
@@ -260,18 +263,10 @@ router.get("/stats/summary", protect, async (req, res) => {
       };
     }
 
-    const stats = await Lead.aggregate([
-      { $match: filter },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    const leads = await Lead.find(filter);
 
-    let result = {
-      total: 0,
+    const result = {
+      total: leads.length,
       new: 0,
       followup: 0,
       not_interested: 0,
@@ -281,17 +276,11 @@ router.get("/stats/summary", protect, async (req, res) => {
       site_visit_done: 0
     };
 
-    stats.forEach(s => {
+    leads.forEach(l => {
 
-      result.total += s.count;
-
-      if (s._id === "new") result.new = s.count;
-      if (s._id === "followup") result.followup = s.count;
-      if (s._id === "not_interested") result.not_interested = s.count;
-      if (s._id === "junk") result.junk = s.count;
-      if (s._id === "closed") result.closed = s.count;
-      if (s._id === "site_visit_planned") result.site_visit_planned = s.count;
-      if (s._id === "site_visit_done") result.site_visit_done = s.count;
+      if (result.hasOwnProperty(l.status)) {
+        result[l.status]++;
+      }
 
     });
 
@@ -299,7 +288,8 @@ router.get("/stats/summary", protect, async (req, res) => {
 
   } catch (err) {
 
-    console.log(err);
+    console.log("Stats error:", err);
+
     res.status(500).json({ message: "Stats error" });
 
   }
@@ -316,7 +306,7 @@ router.get("/stats/monthly", protect, async (req, res) => {
     let match = {};
 
     if (req.user.role === "sales_agent") {
-      match.assignedTo = req.user.id;
+      match.assignedTo = new mongoose.Types.ObjectId(req.user.id);
     }
 
     const data = await Lead.aggregate([
@@ -324,51 +314,19 @@ router.get("/stats/monthly", protect, async (req, res) => {
       {
         $group: {
           _id: { $month: "$createdAt" },
-          count: { $sum: 1 },
-        },
+          count: { $sum: 1 }
+        }
       },
-      { $sort: { _id: 1 } },
+      { $sort: { _id: 1 } }
     ]);
 
     res.json(data);
 
   } catch (err) {
 
-    console.log(err);
-    res.status(500).json({ message: "Monthly error" });
+    console.log("Monthly error:", err);
 
-  }
-});
-
-/* =========================
-   GET SINGLE LEAD
-========================= */
-
-router.get("/:id", protect, async (req, res) => {
-
-  try {
-
-    const lead = await Lead.findById(req.params.id)
-      .populate("assignedTo", "email role")
-      .populate("createdBy", "email role");
-
-    if (!lead) {
-      return res.status(404).json({ message: "Lead not found" });
-    }
-
-    if (
-      req.user.role === "sales_agent" &&
-      lead.assignedTo?._id.toString() !== req.user.id
-    ) {
-      return res.status(403).json({ message: "Access denied" });
-    }
-
-    res.json(lead);
-
-  } catch (err) {
-
-    console.log(err);
-    res.status(500).json({ message: "Error loading lead" });
+    res.status(500).json({ message: "Monthly stats error" });
 
   }
 });
@@ -389,7 +347,7 @@ router.put(
         req.body.status = normalizeStatus(req.body.status);
       }
 
-      const updatedLead = await Lead.findByIdAndUpdate(
+      const updated = await Lead.findByIdAndUpdate(
         req.params.id,
         req.body,
         { new: true }
@@ -397,12 +355,12 @@ router.put(
         .populate("assignedTo", "email role")
         .populate("createdBy", "email role");
 
-      res.json(updatedLead);
+      res.json(updated);
 
     } catch (err) {
 
       console.log(err);
-      res.status(400).json({ message: "Failed to update lead" });
+      res.status(500).json({ message: "Update failed" });
 
     }
   }
@@ -432,5 +390,31 @@ router.delete(
     }
   }
 );
+
+/* =========================
+   GET SINGLE LEAD
+========================= */
+
+router.get("/:id", protect, async (req, res) => {
+
+  try {
+
+    const lead = await Lead.findById(req.params.id)
+      .populate("assignedTo", "email role")
+      .populate("createdBy", "email role");
+
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    res.json(lead);
+
+  } catch (err) {
+
+    console.log(err);
+    res.status(500).json({ message: "Load lead failed" });
+
+  }
+});
 
 module.exports = router;

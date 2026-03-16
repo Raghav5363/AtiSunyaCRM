@@ -1,5 +1,23 @@
 const mongoose = require("mongoose");
 
+/* =========================
+   EMAIL VALIDATION
+========================= */
+
+const emailValidator = function (email) {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
+
+/* =========================
+   PHONE VALIDATION (INDIA)
+========================= */
+
+const phoneValidator = function (phone) {
+  const regex = /^[6-9]\d{9}$/;
+  return regex.test(phone);
+};
+
 const leadSchema = new mongoose.Schema(
 {
   /* =========================
@@ -8,21 +26,35 @@ const leadSchema = new mongoose.Schema(
 
   name: {
     type: String,
-    required: true,
-    trim: true
+    required: [true, "Name is required"],
+    trim: true,
+    minlength: 2,
+    maxlength: 100
   },
 
   email: {
     type: String,
-    required: true,
+    required: [true, "Email is required"],
     trim: true,
-    lowercase: true
+    lowercase: true,
+    unique: true,
+
+    validate: {
+      validator: emailValidator,
+      message: "Invalid email format"
+    }
   },
 
   phone: {
     type: String,
-    required: true,
-    trim: true
+    required: [true, "Phone number is required"],
+    trim: true,
+    unique: true,
+
+    validate: {
+      validator: phoneValidator,
+      message: "Invalid phone number"
+    }
   },
 
   /* =========================
@@ -50,7 +82,8 @@ const leadSchema = new mongoose.Schema(
   source: {
     type: String,
     default: "",
-    trim: true
+    trim: true,
+    maxlength: 100
   },
 
   /* =========================
@@ -87,5 +120,13 @@ const leadSchema = new mongoose.Schema(
   timestamps: true
 }
 );
+
+/* =========================
+   INDEXES (FAST SEARCH)
+========================= */
+
+leadSchema.index({ email: 1 });
+leadSchema.index({ phone: 1 });
+leadSchema.index({ status: 1 });
 
 module.exports = mongoose.model("Lead", leadSchema);

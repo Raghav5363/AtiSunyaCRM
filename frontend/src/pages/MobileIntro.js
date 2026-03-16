@@ -58,7 +58,7 @@ padding:20
 },
 
 logo:{
-width:170,
+width:250,
 marginBottom:20
 },
 

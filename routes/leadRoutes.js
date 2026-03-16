@@ -40,6 +40,24 @@ function normalizeStatus(status) {
 }
 
 /* =========================
+   EMAIL VALIDATION
+========================= */
+
+function isValidEmail(email) {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+}
+
+/* =========================
+   PHONE VALIDATION (India)
+========================= */
+
+function isValidPhone(phone) {
+  const regex = /^[6-9]\d{9}$/;
+  return regex.test(phone);
+}
+
+/* =========================
    MULTER CONFIG
 ========================= */
 
@@ -79,12 +97,22 @@ router.post(
 
       for (const row of results) {
 
-        if (!row.email) {
+        if (
+          !row.email ||
+          !row.phone ||
+          !isValidEmail(row.email) ||
+          !isValidPhone(row.phone)
+        ) {
           skipped++;
           continue;
         }
 
-        const existing = await Lead.findOne({ email: row.email });
+        const existing = await Lead.findOne({
+          $or: [
+            { email: row.email },
+            { phone: row.phone }
+          ]
+        });
 
         if (existing) {
           skipped++;
@@ -105,7 +133,9 @@ router.post(
 
       }
 
-      fs.unlinkSync(req.file.path);
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
 
       res.status(200).json({
         message: "CSV upload completed",
@@ -244,11 +274,11 @@ router.get("/stats/summary", protect, async (req, res) => {
       total: 0,
       new: 0,
       followup: 0,
-      notInterested: 0,
+      not_interested: 0,
       junk: 0,
       closed: 0,
-      siteVisitPlanned: 0,
-      siteVisitDone: 0
+      site_visit_planned: 0,
+      site_visit_done: 0
     };
 
     stats.forEach(s => {
@@ -257,11 +287,11 @@ router.get("/stats/summary", protect, async (req, res) => {
 
       if (s._id === "new") result.new = s.count;
       if (s._id === "followup") result.followup = s.count;
-      if (s._id === "not_interested") result.notInterested = s.count;
+      if (s._id === "not_interested") result.not_interested = s.count;
       if (s._id === "junk") result.junk = s.count;
       if (s._id === "closed") result.closed = s.count;
-      if (s._id === "site_visit_planned") result.siteVisitPlanned = s.count;
-      if (s._id === "site_visit_done") result.siteVisitDone = s.count;
+      if (s._id === "site_visit_planned") result.site_visit_planned = s.count;
+      if (s._id === "site_visit_done") result.site_visit_done = s.count;
 
     });
 
@@ -306,48 +336,6 @@ router.get("/stats/monthly", protect, async (req, res) => {
 
     console.log(err);
     res.status(500).json({ message: "Monthly error" });
-
-  }
-});
-
-/* =========================
-   TEAM PERFORMANCE
-========================= */
-
-router.get("/stats/team", protect, async (req, res) => {
-
-  try {
-
-    const data = await Lead.aggregate([
-      {
-        $group: {
-          _id: "$assignedTo",
-          total: { $sum: 1 },
-          converted: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "closed"] }, 1, 0],
-            },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "_id",
-          foreignField: "_id",
-          as: "user",
-        },
-      },
-      { $unwind: "$user" },
-      { $sort: { converted: -1 } },
-    ]);
-
-    res.json(data);
-
-  } catch (err) {
-
-    console.log(err);
-    res.status(500).json({ message: "Team stats error" });
 
   }
 });

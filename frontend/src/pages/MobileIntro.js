@@ -9,34 +9,40 @@ return (
 
 <div style={styles.page}>
 
-<img
-src="/Atisunya.logo.png"
-alt="AtiSunya"
-style={styles.logo}
-/>
+  {/* LOGO */}
+  <img
+    src="/Atisunya.logo.png"
+    alt="AtiSunya"
+    style={styles.logo}
+  />
 
-<h1 style={styles.heading}>
-Manage your sales smarter
-</h1>
+  {/* CONTENT CARD */}
+  <div style={styles.card}>
 
-<p style={styles.text}>
-AtiSunya CRM helps your team track leads,
-close deals faster and grow revenue —
-all in one simple platform.
-</p>
+    <h1 style={styles.heading}>
+      Manage your sales smarter
+    </h1>
 
-<img
-src="https://images.unsplash.com/photo-1552664730-d307ca884978"
-alt="crm"
-style={styles.image}
-/>
+    <p style={styles.text}>
+      AtiSunya CRM helps your team track leads,
+      close deals faster and grow revenue —
+      all in one simple platform.
+    </p>
 
-<button
-style={styles.button}
-onClick={()=>navigate("/login")}
->
-Start Now
-</button>
+    <img
+      src="https://images.unsplash.com/photo-1552664730-d307ca884978"
+      alt="crm"
+      style={styles.image}
+    />
+
+    <button
+      style={styles.button}
+      onClick={()=>navigate("/login")}
+    >
+      Get Started →
+    </button>
+
+  </div>
 
 </div>
 
@@ -47,51 +53,69 @@ Start Now
 const styles = {
 
 page:{
-height:"100vh",
+minHeight:"100vh",
 display:"flex",
 flexDirection:"column",
 alignItems:"center",
 justifyContent:"center",
-background:"#f8fafc",
+background:"linear-gradient(135deg, #e0f2fe, #f8fafc)",
 textAlign:"center",
-padding:20
+padding:"20px",
+fontFamily:"Inter, Segoe UI, sans-serif"
 },
 
+/* 🔥 BIGGER LOGO */
 logo:{
-width:250,
-marginBottom:20
+width:"100%",
+maxWidth:"260px",
+marginBottom:"25px",
+objectFit:"contain"
+},
+
+card:{
+background:"#ffffff",
+padding:"30px",
+borderRadius:"16px",
+boxShadow:"0 15px 40px rgba(0,0,0,0.08)",
+maxWidth:"420px",
+width:"100%"
 },
 
 heading:{
-fontSize:30,
-fontWeight:700,
+fontSize:"28px",
+fontWeight:"700",
 color:"#0f172a",
-marginBottom:10
+marginBottom:"12px",
+lineHeight:"1.3"
 },
 
 text:{
-fontSize:15,
+fontSize:"15px",
 color:"#475569",
-maxWidth:420,
-marginBottom:30
+marginBottom:"25px",
+lineHeight:"1.6"
 },
 
 image:{
-width:"90%",
-maxWidth:350,
-borderRadius:14,
-marginBottom:40
+width:"100%",
+maxWidth:"320px",
+borderRadius:"14px",
+marginBottom:"30px",
+objectFit:"cover"
 },
 
 button:{
 background:"#2563eb",
 color:"#fff",
 border:"none",
-padding:"14px 30px",
-borderRadius:10,
-fontSize:16,
-fontWeight:600,
-cursor:"pointer"
+padding:"14px",
+width:"100%",
+borderRadius:"10px",
+fontSize:"16px",
+fontWeight:"600",
+cursor:"pointer",
+transition:"0.2s",
+boxShadow:"0 8px 20px rgba(37,99,235,0.25)"
 }
 
 };

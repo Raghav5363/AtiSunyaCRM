@@ -355,7 +355,6 @@ function Tab({ icon, label, active, onClick }) {
 }
 
 /* ================= KPI CARD ================= */
-
 function KpiCard({ title, value, onClick }) {
 
   const [count, setCount] = React.useState(0);
@@ -385,7 +384,12 @@ function KpiCard({ title, value, onClick }) {
   return (
     <div className="kpiCard" onClick={onClick} style={{cursor:"pointer"}}>
       <h4>{title}</h4>
-      <p className="kpiValue">{count}</p>
+
+      {/* ✅ NEW CIRCLE UI */}
+      <div className="kpiCircle">
+        {count}
+      </div>
+
     </div>
   );
 }

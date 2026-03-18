@@ -210,3 +210,68 @@
   }
 
 }
+/* ================= KPI UI IMPROVEMENT ================= */
+
+.kpiWrapper {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 16px;
+}
+
+.kpiCard {
+  padding: 14px !important;
+  border-radius: 14px !important;
+}
+
+.kpiCard h4 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* CIRCLE DESIGN */
+.kpiCircle {
+  width: 65px;
+  height: 65px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px auto 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* ================= MOBILE FIX ================= */
+
+@media (max-width: 768px) {
+
+  .kpiWrapper {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px;
+  }
+
+  .kpiCircle {
+    width: 60px;
+    height: 60px;
+    font-size: 16px;
+  }
+
+}
+
+/* ❌ IMPORTANT: 1 column hata diya */
+@media (max-width: 480px) {
+
+  .kpiWrapper {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+}
+
+/* ================= TAB POLISH ================= */
+
+.tab {
+  flex: 1;
+  justify-content: center;
+  font-size: 13px;
+}

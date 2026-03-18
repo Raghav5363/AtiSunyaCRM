@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom"; // ✅ UPDATED
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { FaPhoneAlt, FaWhatsapp, FaEnvelope, FaSms, FaEdit } from "react-icons/fa";
-import { FiArrowLeft } from "react-icons/fi"; // ✅ ADDED
+import { FaPhoneAlt, FaWhatsapp, FaEnvelope, FaSms } from "react-icons/fa"; // ❌ FaEdit removed
+import { FiArrowLeft } from "react-icons/fi";
 
 export default function LeadView() {
 
 const { id } = useParams();
-const navigate = useNavigate(); // ✅ ADDED
+const navigate = useNavigate();
 
 const [lead,setLead] = useState(null);
 const [activities,setActivities] = useState([]);
@@ -24,7 +24,7 @@ const token = localStorage.getItem("token");
 const BASE_URL =
 process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-const authConfig = useMemo(()=>({
+const authConfig = useMemo(() => ({
 headers:{ Authorization:`Bearer ${token}` }
 }),[token]);
 
@@ -32,10 +32,7 @@ headers:{ Authorization:`Bearer ${token}` }
 
 const loadLead = useCallback(async()=>{
 try{
-const res = await axios.get(
-`${BASE_URL}/api/leads/${id}`,
-authConfig
-);
+const res = await axios.get(`${BASE_URL}/api/leads/${id}`,authConfig);
 setLead(res.data);
 }catch{
 toast.error("Failed to load lead");
@@ -44,10 +41,7 @@ toast.error("Failed to load lead");
 
 const loadActivities = useCallback(async()=>{
 try{
-const res = await axios.get(
-`${BASE_URL}/api/activities/${id}`,
-authConfig
-);
+const res = await axios.get(`${BASE_URL}/api/activities/${id}`,authConfig);
 setActivities(res.data);
 }catch{
 toast.error("Failed to load activities");
@@ -69,16 +63,9 @@ return;
 }
 
 try{
-
 const res = await axios.post(
 `${BASE_URL}/api/activities/${id}`,
-{
-activityType,
-activityDateTime,
-outcome,
-notes,
-nextFollowUpDate
-},
+{ activityType, activityDateTime, outcome, notes, nextFollowUpDate },
 authConfig
 );
 
@@ -90,13 +77,11 @@ setNextFollowUpDate("");
 setActivityDateTime("");
 
 toast.success("Activity Added ✔");
-
 loadLead();
 
 }catch{
 toast.error("Error adding activity");
 }
-
 };
 
 if(!lead) return <div style={{padding:40}}>Loading...</div>;
@@ -128,14 +113,11 @@ return (
 
 <div style={styles.page}>
 
-{/* ✅ BACK BUTTON */}
+{/* BACK BUTTON */}
 <div style={{marginBottom:"10px"}}>
-  <button
-    onClick={()=>navigate(-1)}
-    style={styles.backBtn}
-  >
-    <FiArrowLeft/> Back
-  </button>
+<button onClick={()=>navigate(-1)} style={styles.backBtn}>
+<FiArrowLeft/> Back
+</button>
 </div>
 
 <div style={styles.container}>
@@ -144,19 +126,10 @@ return (
 
 <div style={styles.header}>
 
-<div>
-  <h2 style={styles.name}>{lead.name}</h2>
-</div>
+<h2 style={styles.name}>{lead.name}</h2>
 
-<div style={{display:"flex",gap:"10px"}}>
-
-{/* ✅ EDIT BUTTON */}
-<button
-onClick={()=>navigate(`/edit/${lead._id}`)}
-style={{...styles.iconBtn, background:"#007bff", color:"#fff"}}
->
-<FaEdit/>
-</button>
+{/* ICON ROW */}
+<div style={styles.iconRow}>
 
 <button onClick={()=>window.location.href=`tel:${lead.phone}`} style={styles.iconBtn}>
 <FaPhoneAlt/>
@@ -174,7 +147,7 @@ style={{...styles.iconBtn, background:"#007bff", color:"#fff"}}
 href={`https://wa.me/${cleanNumber}`}
 target="_blank"
 rel="noreferrer"
-style={{...styles.iconBtn,background:"#25D366",color:"white"}}
+style={styles.whatsappBtn}
 >
 <FaWhatsapp/>
 </a>
@@ -183,7 +156,7 @@ style={{...styles.iconBtn,background:"#25D366",color:"white"}}
 
 </div>
 
-{/* REST SAME (NO CHANGE) */}
+{/* DETAILS */}
 
 <div style={styles.details}>
 
@@ -220,8 +193,6 @@ style={{...styles.iconBtn,background:"#25D366",color:"white"}}
 </p>
 
 </div>
-
-{/* ===== REST CODE SAME ===== */}
 
 {/* ADD ACTIVITY */}
 
@@ -274,10 +245,15 @@ const followUp = getFollowUpStatus(a.nextFollowUpDate);
 
 return(
 <div key={a._id} style={styles.timeline}>
+
 <div style={styles.timelineHeader}>
+
 <b style={{textTransform:"capitalize"}}>
 {a.activityType}
-</b> — {a.outcome}
+</b>
+
+<div style={styles.timelineRight}>
+<span>{a.outcome}</span>
 
 {a.nextFollowUpDate && (
 <span style={{...styles.followUpLabel, backgroundColor:followUp.color}}>
@@ -287,7 +263,9 @@ return(
 
 </div>
 
-<p>{a.notes}</p>
+</div>
+
+<p style={styles.notes}>{a.notes}</p>
 
 <div style={styles.time}>
 {new Date(a.activityDateTime).toLocaleString()}
@@ -302,44 +280,64 @@ return(
 </div>
 
 </div>
-
 </div>
-
 );
-
 }
 
 /* ================= STYLES ================= */
 
 const styles = {
 
-page:{ background:"#f4f6f9", minHeight:"100vh", padding:"30px" },
+page:{ background:"#f4f6f9", minHeight:"100vh", padding:"20px" },
 
 container:{
 maxWidth:"900px",
 margin:"auto",
 background:"#fff",
-padding:"30px",
-borderRadius:"8px",
-boxShadow:"0 2px 10px rgba(0,0,0,0.05)"
+padding:"25px",
+borderRadius:"10px",
+boxShadow:"0 4px 15px rgba(0,0,0,0.08)"
 },
 
 header:{
 display:"flex",
 justifyContent:"space-between",
 alignItems:"center",
+flexWrap:"wrap", // ✅ mobile fix
+gap:"10px",
 marginBottom:"20px"
+},
+
+iconRow:{
+display:"flex",
+gap:"10px",
+flexWrap:"wrap" // ✅ mobile fix
 },
 
 name:{ margin:0 },
 
 iconBtn:{
+width:"42px",
+height:"42px",
+borderRadius:"10px",
 border:"none",
-background:"#eee",
-padding:"10px",
-borderRadius:"6px",
-cursor:"pointer",
-fontSize:"16px"
+background:"#f1f5f9",
+display:"flex",
+alignItems:"center",
+justifyContent:"center",
+cursor:"pointer"
+},
+
+whatsappBtn:{
+width:"42px",
+height:"42px",
+borderRadius:"10px",
+background:"#25D366",
+color:"#fff",
+display:"flex",
+alignItems:"center",
+justifyContent:"center",
+textDecoration:"none"
 },
 
 backBtn:{
@@ -350,7 +348,7 @@ border:"none",
 background:"transparent",
 cursor:"pointer",
 fontSize:"14px",
-color:"#007bff",
+color:"#2563eb",
 fontWeight:"500"
 },
 
@@ -359,16 +357,16 @@ details:{ marginBottom:"30px", lineHeight:"1.8" },
 status:{
 background:"#e8f0ff",
 padding:"4px 8px",
-borderRadius:"4px",
+borderRadius:"6px",
 marginLeft:"5px",
 fontSize:"13px"
 },
 
 roleBadge:{
 marginLeft:"8px",
-background:"#ddd",
+background:"#eef2ff",
 padding:"3px 6px",
-borderRadius:"4px",
+borderRadius:"6px",
 fontSize:"12px"
 },
 
@@ -378,15 +376,15 @@ label:{ fontWeight:"600", marginTop:"10px", display:"block" },
 
 input:{
 width:"100%",
-padding:"8px",
+padding:"10px",
 marginTop:"5px",
 marginBottom:"10px",
 border:"1px solid #ccc",
-borderRadius:"4px"
+borderRadius:"6px"
 },
 
 button:{
-background:"#007bff",
+background:"#2563eb",
 color:"#fff",
 border:"none",
 padding:"10px",
@@ -395,14 +393,23 @@ cursor:"pointer"
 },
 
 timeline:{
-borderLeft:"3px solid #007bff",
+borderLeft:"3px solid #2563eb",
 paddingLeft:"15px",
 marginBottom:"20px"
 },
 
 timelineHeader:{
 display:"flex",
-justifyContent:"space-between"
+justifyContent:"space-between",
+flexWrap:"wrap", // ✅ mobile fix
+gap:"8px"
+},
+
+timelineRight:{
+display:"flex",
+gap:"8px",
+flexWrap:"wrap", // ✅ mobile fix
+alignItems:"center"
 },
 
 followUpLabel:{
@@ -411,6 +418,8 @@ padding:"3px 6px",
 borderRadius:"4px",
 fontSize:"12px"
 },
+
+notes:{ margin:"5px 0" },
 
 time:{ fontSize:"12px", color:"#777" }
 

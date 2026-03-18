@@ -89,54 +89,35 @@ export default function Dashboard() {
   const BASE_URL =
     process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  /* ================= FETCH STATS ================= */
+  /* ================= FETCH ================= */
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await axios.get(
-        `${BASE_URL}/api/leads/stats/summary`,
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : ""
-          }
-        }
-      );
+      const res = await axios.get(`${BASE_URL}/api/leads/stats/summary`, {
+        headers: { Authorization: token ? `Bearer ${token}` : "" }
+      });
       setStats(res.data);
     } catch (err) {
       console.log("Stats error:", err);
     }
   }, [BASE_URL, token]);
 
-  /* ================= FETCH MONTHLY ================= */
-
   const fetchMonthly = useCallback(async () => {
     try {
-      const res = await axios.get(
-        `${BASE_URL}/api/leads/stats/monthly`,
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : ""
-          }
-        }
-      );
+      const res = await axios.get(`${BASE_URL}/api/leads/stats/monthly`, {
+        headers: { Authorization: token ? `Bearer ${token}` : "" }
+      });
       setMonthly(res.data);
     } catch (err) {
       console.log("Monthly error:", err);
     }
   }, [BASE_URL, token]);
 
-  /* ================= FETCH SCHEDULE ================= */
-
   const fetchSchedule = useCallback(async () => {
     try {
-      const res = await axios.get(
-        `${BASE_URL}/api/activities/today`,
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : ""
-          }
-        }
-      );
+      const res = await axios.get(`${BASE_URL}/api/activities/today`, {
+        headers: { Authorization: token ? `Bearer ${token}` : "" }
+      });
       setSchedule(res.data);
     } catch (err) {
       console.log("Schedule error:", err);
@@ -159,12 +140,9 @@ export default function Dashboard() {
     loadDashboard();
   }, [fetchStats, fetchMonthly, fetchSchedule]);
 
-  /* ================= ✅ FIXED TODAY DATA ================= */
-
-  // ❌ extra filtering hata diya
   const todayActivities = schedule;
 
-  /* ================= PIE CHART ================= */
+  /* ================= CHART DATA ================= */
 
   const pieData = {
     labels: [
@@ -200,13 +178,9 @@ export default function Dashboard() {
     ]
   };
 
-  /* ================= BAR CHART ================= */
-
   const barData = {
     labels: monthly.map(m =>
-      new Date(0, m._id - 1).toLocaleString("default", {
-        month: "short"
-      })
+      new Date(0, m._id - 1).toLocaleString("default", { month: "short" })
     ),
     datasets: [
       {
@@ -220,7 +194,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="dashboard">
-        <p>Loading dashboard...</p>
+        <p style={{ textAlign: "center" }}>Loading dashboard...</p>
       </div>
     );
   }
@@ -228,56 +202,30 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
 
+      {/* 🔥 TABS */}
       <div className="tabs">
-
-        <Tab
-          icon={<FiUsers />}
-          label="Lead Summary"
-          active={activeTab === "summary"}
-          onClick={() => setActiveTab("summary")}
-        />
-
-        <Tab
-          icon={<FiCalendar />}
-          label="Today's Schedule"
-          active={activeTab === "schedule"}
-          onClick={() => setActiveTab("schedule")}
-        />
-
-        <Tab
-          icon={<FiBarChart2 />}
-          label="Lead Dashboard"
-          active={activeTab === "dashboard"}
-          onClick={() => setActiveTab("dashboard")}
-        />
-
+        <Tab icon={<FiUsers />} label="Lead Summary" active={activeTab === "summary"} onClick={() => setActiveTab("summary")} />
+        <Tab icon={<FiCalendar />} label="Today's Schedule" active={activeTab === "schedule"} onClick={() => setActiveTab("schedule")} />
+        <Tab icon={<FiBarChart2 />} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
       </div>
 
+      {/* 🔥 SUMMARY */}
       {activeTab === "summary" && (
         <div className="kpiWrapper">
-
           <KpiCard title="All Leads" value={stats.total} onClick={() => navigate("/leads")} />
-
           <KpiCard title="New Leads" value={stats.new} onClick={() => navigate("/leads?status=new")} />
-
           <KpiCard title="Follow Up" value={stats.followup} onClick={() => navigate("/leads?status=followup")} />
-
           <KpiCard title="Not Interested" value={stats.not_interested} onClick={() => navigate("/leads?status=not_interested")} />
-
           <KpiCard title="Junk" value={stats.junk} onClick={() => navigate("/leads?status=junk")} />
-
           <KpiCard title="Closed" value={stats.closed} onClick={() => navigate("/leads?status=closed")} />
-
           <KpiCard title="Site Visit Planned" value={stats.site_visit_planned} onClick={() => navigate("/leads?status=site_visit_planned")} />
-
           <KpiCard title="Site Visit Done" value={stats.site_visit_done} onClick={() => navigate("/leads?status=site_visit_done")} />
-
         </div>
       )}
 
+      {/* 🔥 SCHEDULE */}
       {activeTab === "schedule" && (
         <div className="contentCard">
-
           <h3>Today's Schedule</h3>
 
           {todayActivities.length === 0 ? (
@@ -287,19 +235,15 @@ export default function Dashboard() {
               <div
                 key={i}
                 className="scheduleItem"
-                onClick={() => navigate(`/lead/${item.leadId?._id}`)} // ✅ improved
+                onClick={() => navigate(`/lead/${item.leadId?._id}`)}
               >
-
                 <div style={{ display: "flex", gap: "10px" }}>
-                  <div style={{ marginTop: "3px" }}>
-                    {getActivityIcon(item.activityType)}
-                  </div>
+                  <div>{getActivityIcon(item.activityType)}</div>
 
                   <div>
                     <div style={{ fontWeight: "600" }}>
-                      {item.leadId?.name || "Lead"} {/* ✅ FIX */}
+                      {item.leadId?.name || "Lead"}
                     </div>
-
                     <div style={{ fontSize: "13px", color: "#777" }}>
                       {item.activityType}
                     </div>
@@ -307,22 +251,17 @@ export default function Dashboard() {
                 </div>
 
                 <div style={{ fontSize: "13px", color: "#999" }}>
-                  {formatDateTime(
-                    item.activityDateTime ||
-                    item.nextFollowUpDate
-                  )}
+                  {formatDateTime(item.activityDateTime || item.nextFollowUpDate)}
                 </div>
-
               </div>
             ))
           )}
-
         </div>
       )}
 
+      {/* 🔥 CHART */}
       {activeTab === "dashboard" && (
         <div className="chartSection">
-
           <div className="chartCard">
             <h3>Status Distribution</h3>
             <Pie data={pieData} />
@@ -332,29 +271,23 @@ export default function Dashboard() {
             <h3>Monthly Leads</h3>
             <Bar data={barData} />
           </div>
-
         </div>
       )}
-
     </div>
   );
 }
 
-/* ================= TAB ================= */
-
+/* TAB */
 function Tab({ icon, label, active, onClick }) {
   return (
-    <div
-      onClick={onClick}
-      className={active ? "tab activeTab" : "tab"}
-    >
+    <div onClick={onClick} className={active ? "tab activeTab" : "tab"}>
       {icon}
       <span>{label}</span>
     </div>
   );
 }
 
-/* ================= KPI CARD ================= */
+/* KPI */
 function KpiCard({ title, value, onClick }) {
 
   const [count, setCount] = React.useState(0);
@@ -382,14 +315,9 @@ function KpiCard({ title, value, onClick }) {
   }, [value]);
 
   return (
-    <div className="kpiCard" onClick={onClick} style={{cursor:"pointer"}}>
+    <div className="kpiCard" onClick={onClick} style={{ cursor: "pointer" }}>
       <h4>{title}</h4>
-
-      {/* ✅ NEW CIRCLE UI */}
-      <div className="kpiCircle">
-        {count}
-      </div>
-
+      <div className="kpiCircle">{count}</div>
     </div>
   );
 }

@@ -55,13 +55,10 @@ const getActivityIcon = (type) => {
   switch (type) {
     case "call":
       return <FiPhone size={16} />;
-
     case "email":
       return <FiMail size={16} />;
-
     case "whatsapp":
       return <FiMessageCircle size={16} />;
-
     default:
       return <FiCalendar size={16} />;
   }
@@ -95,9 +92,7 @@ export default function Dashboard() {
   /* ================= FETCH STATS ================= */
 
   const fetchStats = useCallback(async () => {
-
     try {
-
       const res = await axios.get(
         `${BASE_URL}/api/leads/stats/summary`,
         {
@@ -106,23 +101,16 @@ export default function Dashboard() {
           }
         }
       );
-
       setStats(res.data);
-
     } catch (err) {
-
       console.log("Stats error:", err);
-
     }
-
   }, [BASE_URL, token]);
 
   /* ================= FETCH MONTHLY ================= */
 
   const fetchMonthly = useCallback(async () => {
-
     try {
-
       const res = await axios.get(
         `${BASE_URL}/api/leads/stats/monthly`,
         {
@@ -131,23 +119,16 @@ export default function Dashboard() {
           }
         }
       );
-
       setMonthly(res.data);
-
     } catch (err) {
-
       console.log("Monthly error:", err);
-
     }
-
   }, [BASE_URL, token]);
 
   /* ================= FETCH SCHEDULE ================= */
 
   const fetchSchedule = useCallback(async () => {
-
     try {
-
       const res = await axios.get(
         `${BASE_URL}/api/activities/today`,
         {
@@ -156,21 +137,14 @@ export default function Dashboard() {
           }
         }
       );
-
       setSchedule(res.data);
-
     } catch (err) {
-
       console.log("Schedule error:", err);
-
     }
-
   }, [BASE_URL, token]);
 
   useEffect(() => {
-
     const loadDashboard = async () => {
-
       setLoading(true);
 
       await Promise.all([
@@ -180,33 +154,15 @@ export default function Dashboard() {
       ]);
 
       setLoading(false);
-
     };
 
     loadDashboard();
-
   }, [fetchStats, fetchMonthly, fetchSchedule]);
 
-  /* ================= FILTER ONLY TODAY ================= */
+  /* ================= ✅ FIXED TODAY DATA ================= */
 
-  const today = new Date();
-
-  const todayActivities = schedule.filter(item => {
-
-    const activityDate =
-      item.activityDateTime || item.nextFollowUpDate;
-
-    if (!activityDate) return false;
-
-    const d = new Date(activityDate);
-
-    return (
-      d.getDate() === today.getDate() &&
-      d.getMonth() === today.getMonth() &&
-      d.getFullYear() === today.getFullYear()
-    );
-
-  });
+  // ❌ extra filtering hata diya
+  const todayActivities = schedule;
 
   /* ================= PIE CHART ================= */
 
@@ -220,7 +176,6 @@ export default function Dashboard() {
       "Site Visit Planned",
       "Site Visit Done"
     ],
-
     datasets: [
       {
         data: [
@@ -253,7 +208,6 @@ export default function Dashboard() {
         month: "short"
       })
     ),
-
     datasets: [
       {
         label: "Leads",
@@ -301,14 +255,23 @@ export default function Dashboard() {
 
       {activeTab === "summary" && (
         <div className="kpiWrapper">
-          <KpiCard title="All Leads" value={stats.total} />
-          <KpiCard title="New Leads" value={stats.new} />
-          <KpiCard title="Follow Up" value={stats.followup} />
-          <KpiCard title="Not Interested" value={stats.not_interested} />
-          <KpiCard title="Junk" value={stats.junk} />
-          <KpiCard title="Closed" value={stats.closed} />
-          <KpiCard title="Site Visit Planned" value={stats.site_visit_planned} />
-          <KpiCard title="Site Visit Done" value={stats.site_visit_done} />
+
+          <KpiCard title="All Leads" value={stats.total} onClick={() => navigate("/leads")} />
+
+          <KpiCard title="New Leads" value={stats.new} onClick={() => navigate("/leads?status=new")} />
+
+          <KpiCard title="Follow Up" value={stats.followup} onClick={() => navigate("/leads?status=followup")} />
+
+          <KpiCard title="Not Interested" value={stats.not_interested} onClick={() => navigate("/leads?status=not_interested")} />
+
+          <KpiCard title="Junk" value={stats.junk} onClick={() => navigate("/leads?status=junk")} />
+
+          <KpiCard title="Closed" value={stats.closed} onClick={() => navigate("/leads?status=closed")} />
+
+          <KpiCard title="Site Visit Planned" value={stats.site_visit_planned} onClick={() => navigate("/leads?status=site_visit_planned")} />
+
+          <KpiCard title="Site Visit Done" value={stats.site_visit_done} onClick={() => navigate("/leads?status=site_visit_done")} />
+
         </div>
       )}
 
@@ -324,7 +287,7 @@ export default function Dashboard() {
               <div
                 key={i}
                 className="scheduleItem"
-                onClick={() => navigate("/leads")}
+                onClick={() => navigate(`/lead/${item.leadId?._id}`)} // ✅ improved
               >
 
                 <div style={{ display: "flex", gap: "10px" }}>
@@ -334,7 +297,7 @@ export default function Dashboard() {
 
                   <div>
                     <div style={{ fontWeight: "600" }}>
-                      {item.leadName || "Lead"}
+                      {item.leadId?.name || "Lead"} {/* ✅ FIX */}
                     </div>
 
                     <div style={{ fontSize: "13px", color: "#777" }}>
@@ -393,19 +356,17 @@ function Tab({ icon, label, active, onClick }) {
 
 /* ================= KPI CARD ================= */
 
-function KpiCard({ title, value }) {
+function KpiCard({ title, value, onClick }) {
 
   const [count, setCount] = React.useState(0);
 
   React.useEffect(() => {
-
     let start = 0;
     const end = value || 0;
     const duration = 800;
     const increment = end / (duration / 20);
 
     const timer = setInterval(() => {
-
       start += increment;
 
       if (start >= end) {
@@ -422,7 +383,7 @@ function KpiCard({ title, value }) {
   }, [value]);
 
   return (
-    <div className="kpiCard">
+    <div className="kpiCard" onClick={onClick} style={{cursor:"pointer"}}>
       <h4>{title}</h4>
       <p className="kpiValue">{count}</p>
     </div>

@@ -7,26 +7,37 @@ const Lead = require("../models/Lead");
 exports.getSummary = async (req, res) => {
   try {
 
-    const total = await Lead.countDocuments();
+    // ✅ SINGLE AGGREGATION (FASTER)
+    const summary = await Lead.aggregate([
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
 
-    const newLeads = await Lead.countDocuments({ status: "new" });
-    const followup = await Lead.countDocuments({ status: "followup" });
-    const notInterested = await Lead.countDocuments({ status: "not_interested" });
-    const junk = await Lead.countDocuments({ status: "junk" });
-    const closed = await Lead.countDocuments({ status: "closed" });
-    const siteVisitPlanned = await Lead.countDocuments({ status: "site_visit_planned" });
-    const siteVisitDone = await Lead.countDocuments({ status: "site_visit_done" });
+    // ✅ DEFAULT STRUCTURE
+    const result = {
+      total: 0,
+      new: 0,
+      followup: 0,
+      not_interested: 0,
+      junk: 0,
+      closed: 0,
+      site_visit_planned: 0,
+      site_visit_done: 0,
+    };
 
-    res.json({
-      total,
-      new: newLeads,
-      followup,
-      not_interested: notInterested,
-      junk,
-      closed,
-      site_visit_planned: siteVisitPlanned,
-      site_visit_done: siteVisitDone,
+    // ✅ MAP DATA
+    summary.forEach(item => {
+      if (result.hasOwnProperty(item._id)) {
+        result[item._id] = item.count;
+      }
+      result.total += item.count;
     });
+
+    res.json(result);
 
   } catch (err) {
 

@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom"; // ✅ UPDATED
 import axios from "axios";
 import { toast } from "react-toastify";
-import { FaPhoneAlt, FaWhatsapp, FaEnvelope, FaSms } from "react-icons/fa";
+import { FaPhoneAlt, FaWhatsapp, FaEnvelope, FaSms, FaEdit } from "react-icons/fa";
+import { FiArrowLeft } from "react-icons/fi"; // ✅ ADDED
 
 export default function LeadView() {
 
 const { id } = useParams();
+const navigate = useNavigate(); // ✅ ADDED
 
 const [lead,setLead] = useState(null);
 const [activities,setActivities] = useState([]);
@@ -126,34 +128,45 @@ return (
 
 <div style={styles.page}>
 
+{/* ✅ BACK BUTTON */}
+<div style={{marginBottom:"10px"}}>
+  <button
+    onClick={()=>navigate(-1)}
+    style={styles.backBtn}
+  >
+    <FiArrowLeft/> Back
+  </button>
+</div>
+
 <div style={styles.container}>
 
 {/* HEADER */}
 
 <div style={styles.header}>
 
-<h2 style={styles.name}>{lead.name}</h2>
+<div>
+  <h2 style={styles.name}>{lead.name}</h2>
+</div>
 
-<div style={styles.contactButtons}>
+<div style={{display:"flex",gap:"10px"}}>
 
+{/* ✅ EDIT BUTTON */}
 <button
-onClick={()=>window.location.href=`tel:${lead.phone}`}
-style={styles.iconBtn}
+onClick={()=>navigate(`/edit/${lead._id}`)}
+style={{...styles.iconBtn, background:"#007bff", color:"#fff"}}
 >
+<FaEdit/>
+</button>
+
+<button onClick={()=>window.location.href=`tel:${lead.phone}`} style={styles.iconBtn}>
 <FaPhoneAlt/>
 </button>
 
-<button
-onClick={()=>window.location.href=`sms:${lead.phone}`}
-style={styles.iconBtn}
->
+<button onClick={()=>window.location.href=`sms:${lead.phone}`} style={styles.iconBtn}>
 <FaSms/>
 </button>
 
-<a
-href={`mailto:${lead.email}`}
-style={styles.iconBtn}
->
+<a href={`mailto:${lead.email}`} style={styles.iconBtn}>
 <FaEnvelope/>
 </a>
 
@@ -170,7 +183,7 @@ style={{...styles.iconBtn,background:"#25D366",color:"white"}}
 
 </div>
 
-{/* DETAILS */}
+{/* REST SAME (NO CHANGE) */}
 
 <div style={styles.details}>
 
@@ -208,19 +221,15 @@ style={{...styles.iconBtn,background:"#25D366",color:"white"}}
 
 </div>
 
+{/* ===== REST CODE SAME ===== */}
+
 {/* ADD ACTIVITY */}
 
 <div style={styles.card}>
-
 <h3 style={{marginBottom:15}}>Add Activity</h3>
 
 <label style={styles.label}>Activity Type</label>
-
-<select
-value={activityType}
-onChange={(e)=>setActivityType(e.target.value)}
-style={styles.input}
->
+<select value={activityType} onChange={(e)=>setActivityType(e.target.value)} style={styles.input}>
 <option value="call">Call</option>
 <option value="whatsapp">WhatsApp</option>
 <option value="email">Email</option>
@@ -228,21 +237,10 @@ style={styles.input}
 </select>
 
 <label style={styles.label}>Activity Date & Time</label>
-
-<input
-type="datetime-local"
-value={activityDateTime}
-onChange={(e)=>setActivityDateTime(e.target.value)}
-style={styles.input}
-/>
+<input type="datetime-local" value={activityDateTime} onChange={(e)=>setActivityDateTime(e.target.value)} style={styles.input}/>
 
 <label style={styles.label}>Outcome</label>
-
-<select
-value={outcome}
-onChange={(e)=>setOutcome(e.target.value)}
-style={styles.input}
->
+<select value={outcome} onChange={(e)=>setOutcome(e.target.value)} style={styles.input}>
 <option value="">Select Result</option>
 <option>Connected</option>
 <option>Not Picked</option>
@@ -251,27 +249,12 @@ style={styles.input}
 </select>
 
 <label style={styles.label}>Notes</label>
-
-<textarea
-placeholder="Write activity notes..."
-value={notes}
-onChange={(e)=>setNotes(e.target.value)}
-style={styles.input}
-/>
+<textarea value={notes} onChange={(e)=>setNotes(e.target.value)} style={styles.input}/>
 
 <label style={styles.label}>Next Follow Up Date</label>
+<input type="date" value={nextFollowUpDate} onChange={(e)=>setNextFollowUpDate(e.target.value)} style={styles.input}/>
 
-<input
-type="date"
-value={nextFollowUpDate}
-onChange={(e)=>setNextFollowUpDate(e.target.value)}
-style={styles.input}
-/>
-
-<button
-onClick={handleAddActivity}
-style={styles.button}
->
+<button onClick={handleAddActivity} style={styles.button}>
 Add Activity
 </button>
 
@@ -280,41 +263,26 @@ Add Activity
 {/* TIMELINE */}
 
 <div style={{marginTop:30}}>
-
 <h3>Activity Timeline</h3>
 
 {activities.length===0 ? (
-
 <p>No activities yet</p>
-
 ) : (
-
 activities.map((a)=>{
 
 const followUp = getFollowUpStatus(a.nextFollowUpDate);
 
 return(
-
 <div key={a._id} style={styles.timeline}>
-
 <div style={styles.timelineHeader}>
-
 <b style={{textTransform:"capitalize"}}>
 {a.activityType}
 </b> — {a.outcome}
 
 {a.nextFollowUpDate && (
-
-<span
-style={{
-...styles.followUpLabel,
-backgroundColor:followUp.color
-}}
->
-{followUp.label} :
-{new Date(a.nextFollowUpDate).toLocaleDateString()}
+<span style={{...styles.followUpLabel, backgroundColor:followUp.color}}>
+{followUp.label} : {new Date(a.nextFollowUpDate).toLocaleDateString()}
 </span>
-
 )}
 
 </div>
@@ -326,11 +294,9 @@ backgroundColor:followUp.color
 </div>
 
 </div>
-
 )
 
 })
-
 )}
 
 </div>
@@ -347,11 +313,7 @@ backgroundColor:followUp.color
 
 const styles = {
 
-page:{
-background:"#f4f6f9",
-minHeight:"100vh",
-padding:"30px"
-},
+page:{ background:"#f4f6f9", minHeight:"100vh", padding:"30px" },
 
 container:{
 maxWidth:"900px",
@@ -371,11 +333,6 @@ marginBottom:"20px"
 
 name:{ margin:0 },
 
-contactButtons:{
-display:"flex",
-gap:"10px"
-},
-
 iconBtn:{
 border:"none",
 background:"#eee",
@@ -385,10 +342,19 @@ cursor:"pointer",
 fontSize:"16px"
 },
 
-details:{
-marginBottom:"30px",
-lineHeight:"1.8"
+backBtn:{
+display:"flex",
+alignItems:"center",
+gap:"6px",
+border:"none",
+background:"transparent",
+cursor:"pointer",
+fontSize:"14px",
+color:"#007bff",
+fontWeight:"500"
 },
+
+details:{ marginBottom:"30px", lineHeight:"1.8" },
 
 status:{
 background:"#e8f0ff",
@@ -406,17 +372,9 @@ borderRadius:"4px",
 fontSize:"12px"
 },
 
-card:{
-border:"1px solid #eee",
-padding:"20px",
-borderRadius:"8px"
-},
+card:{ border:"1px solid #eee", padding:"20px", borderRadius:"8px" },
 
-label:{
-fontWeight:"600",
-marginTop:"10px",
-display:"block"
-},
+label:{ fontWeight:"600", marginTop:"10px", display:"block" },
 
 input:{
 width:"100%",
@@ -454,9 +412,6 @@ borderRadius:"4px",
 fontSize:"12px"
 },
 
-time:{
-fontSize:"12px",
-color:"#777"
-}
+time:{ fontSize:"12px", color:"#777" }
 
 };

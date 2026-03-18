@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import DeletePopup from "./DeletePopup";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { FiArrowLeft } from "react-icons/fi"; // ✅ ADDED
 
 export default function Leads() {
 
@@ -14,6 +15,7 @@ const [showDeletePopup,setShowDeletePopup] = useState(false);
 const [selectedLeadId,setSelectedLeadId] = useState(null);
 
 const navigate = useNavigate();
+const location = useLocation();
 
 const token = localStorage.getItem("token");
 
@@ -42,13 +44,33 @@ const canEdit = isAdmin || isManager;
 const canDelete = isAdmin;
 
 
+/* ===== 🔥 URL FILTER SYNC ===== */
+
+useEffect(() => {
+const params = new URLSearchParams(location.search);
+const status = params.get("status");
+
+if (status) {
+setFilterStatus(status);
+} else {
+setFilterStatus("all");
+}
+}, [location.search]);
+
+
 /* ===== FETCH LEADS ===== */
 
 const fetchLeads = useCallback(async ()=>{
 
 try{
 
-const res = await axios.get(API,{
+let url = API;
+
+if(filterStatus !== "all"){
+url += `?status=${filterStatus}`;
+}
+
+const res = await axios.get(url,{
 headers:{ Authorization:`Bearer ${token}` }
 });
 
@@ -58,7 +80,7 @@ setLeads(res.data);
 toast.error("Failed to load leads");
 }
 
-},[API,token]);
+},[API,token,filterStatus]);
 
 useEffect(()=>{
 fetchLeads();
@@ -138,6 +160,27 @@ return (
 
 <div className="card">
 
+{/* ✅ BACK BUTTON */}
+<div style={{ marginBottom: "15px" }}>
+  <button
+    onClick={() => navigate(-1)}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      border: "none",
+      background: "transparent",
+      cursor: "pointer",
+      fontSize: "14px",
+      color: "#2563eb",
+      fontWeight: "500"
+    }}
+  >
+    <FiArrowLeft /> Back
+  </button>
+</div>
+
+
 {/* SEARCH */}
 
 <input
@@ -154,21 +197,21 @@ style={{marginBottom:15,maxWidth:280}}
 
 <div style={{marginBottom:20,flexWrap:"wrap"}}>
 
-<button onClick={()=>setFilterStatus("all")} style={btnStyle("all")}>All</button>
+<button onClick={()=>navigate("/leads")} style={btnStyle("all")}>All</button>
 
-<button onClick={()=>setFilterStatus("new")} style={btnStyle("new")}>New</button>
+<button onClick={()=>navigate("/leads?status=new")} style={btnStyle("new")}>New</button>
 
-<button onClick={()=>setFilterStatus("followup")} style={btnStyle("followup")}>Follow Up</button>
+<button onClick={()=>navigate("/leads?status=followup")} style={btnStyle("followup")}>Follow Up</button>
 
-<button onClick={()=>setFilterStatus("not_interested")} style={btnStyle("not_interested")}>Not Interested</button>
+<button onClick={()=>navigate("/leads?status=not_interested")} style={btnStyle("not_interested")}>Not Interested</button>
 
-<button onClick={()=>setFilterStatus("junk")} style={btnStyle("junk")}>Junk</button>
+<button onClick={()=>navigate("/leads?status=junk")} style={btnStyle("junk")}>Junk</button>
 
-<button onClick={()=>setFilterStatus("closed")} style={btnStyle("closed")}>Closed</button>
+<button onClick={()=>navigate("/leads?status=closed")} style={btnStyle("closed")}>Closed</button>
 
-<button onClick={()=>setFilterStatus("site_visit_planned")} style={btnStyle("site_visit_planned")}>Site Visit Planned</button>
+<button onClick={()=>navigate("/leads?status=site_visit_planned")} style={btnStyle("site_visit_planned")}>Site Visit Planned</button>
 
-<button onClick={()=>setFilterStatus("site_visit_done")} style={btnStyle("site_visit_done")}>Site Visit Done</button>
+<button onClick={()=>navigate("/leads?status=site_visit_done")} style={btnStyle("site_visit_done")}>Site Visit Done</button>
 
 </div>
 

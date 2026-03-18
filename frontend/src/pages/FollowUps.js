@@ -6,11 +6,11 @@ import { toast } from "react-toastify";
 export default function FollowUps() {
   const [today, setToday] = useState([]);
   const [overdue, setOverdue] = useState([]);
-  const navigate = useNavigate();
+  const [upcoming, setUpcoming] = useState([]); // 🟡 NEW
 
+  const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  // ✅ Production + Local Safe Base URL
   const BASE_URL =
     process.env.REACT_APP_API_URL || "http://localhost:5000";
 
@@ -24,18 +24,16 @@ export default function FollowUps() {
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      const todayRes = await axios.get(
-        `${BASE_URL}/api/followups/today`,
-        { headers }
-      );
-
-      const overdueRes = await axios.get(
-        `${BASE_URL}/api/followups/overdue`,
-        { headers }
-      );
+      const [todayRes, overdueRes, upcomingRes] = await Promise.all([
+        axios.get(`${BASE_URL}/api/followups/today`, { headers }),
+        axios.get(`${BASE_URL}/api/followups/overdue`, { headers }),
+        axios.get(`${BASE_URL}/api/followups/upcoming`, { headers }) // 🟡 NEW API
+      ]);
 
       setToday(todayRes.data);
       setOverdue(overdueRes.data);
+      setUpcoming(upcomingRes.data);
+
     } catch (err) {
       console.log(err);
       toast.error("Failed to load follow-ups");
@@ -47,72 +45,79 @@ export default function FollowUps() {
   }, [fetchFollowUps]);
 
   /* ================= RENDER LIST ================= */
-  const renderList = (list, isOverdue = false) =>
-  list.length > 0 ? (
-    list.map((item) => (
-      <div
-        key={item._id}
-        onClick={() => {
-          if (item.leadId?._id) {
-            navigate(`/lead/${item.leadId._id}`);
-          } else {
-            toast.error("Lead not found");
-          }
-        }}
-        style={{
-          ...styles.card,
-          borderLeft: isOverdue
-            ? "4px solid #dc2626"
-            : "4px solid #0d6efd",
-        }}
-      >
-        <div style={styles.name}>
-          {item.leadId?.name || "Unknown Lead"}
-        </div>
+  const renderList = (list, type = "today") =>
+    list.length > 0 ? (
+      list.map((item) => (
+        <div
+          key={item._id}
+          onClick={() => {
+            if (item.leadId?._id) {
+              navigate(`/lead/${item.leadId._id}`);
+            } else {
+              toast.error("Lead not found");
+            }
+          }}
+          style={{
+            ...styles.card,
+            borderLeft:
+              type === "overdue"
+                ? "4px solid #dc2626"
+                : type === "upcoming"
+                ? "4px solid #f59e0b"
+                : "4px solid #0d6efd",
+          }}
+        >
+          <div style={styles.name}>
+            {item.leadId?.name || "Unknown Lead"}
+          </div>
 
-        <div style={styles.phone}>
-          📞 {item.leadId?.phone || "-"}
-        </div>
+          <div style={styles.phone}>
+            📞 {item.leadId?.phone || "-"}
+          </div>
 
-        <div style={styles.date}>
-          📅{" "}
-          {item.nextFollowUpDate
-            ? new Date(item.nextFollowUpDate).toLocaleDateString()
-            : "-"}
+          <div style={styles.date}>
+            📅{" "}
+            {item.nextFollowUpDate
+              ? new Date(item.nextFollowUpDate).toLocaleDateString()
+              : "-"}
+          </div>
         </div>
-      </div>
-    ))
-  ) : (
-    <div style={styles.empty}>No follow-ups</div>
-  );
-
+      ))
+    ) : (
+      <div style={styles.empty}>No follow-ups</div>
+    );
 
   return (
     <div style={styles.wrapper}>
       <div style={styles.container}>
+
         {/* TODAY */}
         <div style={styles.section}>
           <div style={styles.todayHeader}>
             <span>Today's Follow-ups</span>
-            <span style={styles.countBadge}>
-              {today.length}
-            </span>
+            <span style={styles.countBadge}>{today.length}</span>
           </div>
-
-          {renderList(today)}
+          {renderList(today, "today")}
         </div>
 
         {/* OVERDUE */}
         <div style={styles.section}>
           <div style={styles.overdueHeader}>
             <span>Overdue Follow-ups</span>
-            <span style={styles.countBadge}>
-              {overdue.length}
-            </span>
+            <span style={styles.countBadge}>{overdue.length}</span>
           </div>
-
-          {renderList(overdue, true)}
+          {renderList(overdue, "overdue")}
         </div>
+
+        {/* 🟡 UPCOMING */}
+        <div style={styles.section}>
+          <div style={styles.upcomingHeader}>
+            <span>Upcoming Follow-ups</span>
+            <span style={styles.countBadge}>{upcoming.length}</span>
+          </div>
+          {renderList(upcoming, "upcoming")}
+        </div>
+
       </div>
     </div>
   );
@@ -134,7 +139,7 @@ const styles = {
     margin: "auto",
     display: "flex",
     flexDirection: "column",
-    gap: "40px",
+    gap: "30px",
   },
 
   section: {
@@ -147,7 +152,6 @@ const styles = {
   todayHeader: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: "18px",
     fontSize: "18px",
     fontWeight: 600,
@@ -157,11 +161,19 @@ const styles = {
   overdueHeader: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: "18px",
     fontSize: "18px",
     fontWeight: 600,
     color: "#7f1d1d",
+  },
+
+  upcomingHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "18px",
+    fontSize: "18px",
+    fontWeight: 600,
+    color: "#92400e",
   },
 
   countBadge: {

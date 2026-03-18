@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
+import { FiArrowLeft } from "react-icons/fi"; // ✅ ADDED
 
 const BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000";
@@ -78,7 +79,7 @@ export default function EditLead() {
         authConfig
       );
 
-      navigate("/");
+      navigate("/leads"); // ✅ IMPROVED (was "/")
     } catch (err) {
       console.error(err);
       setApiMsg("Failed to update lead.");
@@ -94,125 +95,151 @@ export default function EditLead() {
         background:
           "linear-gradient(135deg, #0a1a32, #132d4a, #1d3b63)",
         minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-start",
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 650,
-          background: "white",
-          padding: "30px",
-          borderRadius: 15,
-          boxShadow: "0 4px 15px rgba(0,0,0,0.15)",
-          marginTop: 20,
-        }}
-      >
-        <h2
+
+      {/* ✅ BACK BUTTON */}
+      <div style={{ marginBottom: "10px" }}>
+        <button
+          onClick={() => navigate(-1)}
           style={{
-            textAlign: "center",
-            marginBottom: 20,
-            fontWeight: 600,
-            color: "#0a1a32",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            fontSize: "14px",
+            color: "#fff",
+            fontWeight: "500"
           }}
         >
-          Edit Lead
-        </h2>
+          <FiArrowLeft /> Back
+        </button>
+      </div>
 
-        {apiMsg && (
-          <div
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "flex-start",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 650,
+            background: "white",
+            padding: "30px",
+            borderRadius: 15,
+            boxShadow: "0 4px 15px rgba(0,0,0,0.15)",
+            marginTop: 20,
+          }}
+        >
+          <h2
             style={{
-              color: "red",
               textAlign: "center",
-              marginBottom: 10,
+              marginBottom: 20,
+              fontWeight: 600,
+              color: "#0a1a32",
             }}
           >
-            {apiMsg}
-          </div>
-        )}
+            Edit Lead
+          </h2>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-row">
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Full Name"
-              required
-              style={inputBox}
-            />
-          </div>
-
-          <div className="form-row">
-            <input
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="Email"
-              type="email"
-              required
-              style={inputBox}
-            />
-          </div>
-
-          <div className="form-row">
-            <input
-              name="phone"
-              value={form.phone}
-              onChange={handleChange}
-              placeholder="Phone Number"
-              required
-              style={inputBox}
-            />
-          </div>
-
-          <div className="form-row">
-            <select
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-              style={inputBox}
+          {apiMsg && (
+            <div
+              style={{
+                color: "red",
+                textAlign: "center",
+                marginBottom: 10,
+              }}
             >
-              <option value="new">New</option>
-              <option value="contacted">Contacted</option>
-              <option value="followup">Follow Up</option>
-              <option value="no_connect">No Connect</option>
-              <option value="converted">Converted</option>
-            </select>
-          </div>
+              {apiMsg}
+            </div>
+          )}
 
-          <div className="form-row">
-            <input
-              name="source"
-              value={form.source}
-              onChange={handleChange}
-              placeholder="Source (Referral, Website, etc.)"
-              style={inputBox}
-            />
-          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="form-row">
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="Full Name"
+                required
+                style={inputBox}
+              />
+            </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              marginTop: 20,
-            }}
-          >
-            <button
-              style={cancelBtn}
-              type="button"
-              onClick={() => navigate("/")}
+            <div className="form-row">
+              <input
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="Email"
+                type="email"
+                required
+                style={inputBox}
+              />
+            </div>
+
+            <div className="form-row">
+              <input
+                name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                placeholder="Phone Number"
+                required
+                style={inputBox}
+              />
+            </div>
+
+            <div className="form-row">
+              <select
+                name="status"
+                value={form.status}
+                onChange={handleChange}
+                style={inputBox}
+              >
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
+                <option value="followup">Follow Up</option>
+                <option value="no_connect">No Connect</option>
+                <option value="converted">Converted</option>
+              </select>
+            </div>
+
+            <div className="form-row">
+              <input
+                name="source"
+                value={form.source}
+                onChange={handleChange}
+                placeholder="Source (Referral, Website, etc.)"
+                style={inputBox}
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                marginTop: 20,
+              }}
             >
-              Cancel
-            </button>
+              <button
+                style={cancelBtn}
+                type="button"
+                onClick={() => navigate("/leads")} // ✅ IMPROVED
+              >
+                Cancel
+              </button>
 
-            <button style={saveBtn} type="submit">
-              Save Changes
-            </button>
-          </div>
-        </form>
+              <button style={saveBtn} type="submit">
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

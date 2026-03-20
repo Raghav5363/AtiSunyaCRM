@@ -2,11 +2,14 @@ import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { FiArrowLeft } from "react-icons/fi";
+import { FaPhoneAlt } from "react-icons/fa";
 
 export default function FollowUps() {
+
   const [today, setToday] = useState([]);
   const [overdue, setOverdue] = useState([]);
-  const [upcoming, setUpcoming] = useState([]); // 🟡 NEW
+  const [upcoming, setUpcoming] = useState([]);
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
@@ -14,20 +17,16 @@ export default function FollowUps() {
   const BASE_URL =
     process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  /* ================= FETCH FOLLOWUPS ================= */
+  /* ================= FETCH ================= */
   const fetchFollowUps = useCallback(async () => {
     try {
-      if (!token) {
-        toast.error("Unauthorized. Please login again.");
-        return;
-      }
 
       const headers = { Authorization: `Bearer ${token}` };
 
       const [todayRes, overdueRes, upcomingRes] = await Promise.all([
         axios.get(`${BASE_URL}/api/followups/today`, { headers }),
         axios.get(`${BASE_URL}/api/followups/overdue`, { headers }),
-        axios.get(`${BASE_URL}/api/followups/upcoming`, { headers }) // 🟡 NEW API
+        axios.get(`${BASE_URL}/api/followups/upcoming`, { headers })
       ]);
 
       setToday(todayRes.data);
@@ -44,175 +43,230 @@ export default function FollowUps() {
     fetchFollowUps();
   }, [fetchFollowUps]);
 
-  /* ================= RENDER LIST ================= */
-  const renderList = (list, type = "today") =>
-    list.length > 0 ? (
-      list.map((item) => (
-        <div
-          key={item._id}
-          onClick={() => {
-            if (item.leadId?._id) {
-              navigate(`/lead/${item.leadId._id}`);
-            } else {
-              toast.error("Lead not found");
-            }
-          }}
-          style={{
-            ...styles.card,
-            borderLeft:
-              type === "overdue"
-                ? "4px solid #dc2626"
-                : type === "upcoming"
-                ? "4px solid #f59e0b"
-                : "4px solid #0d6efd",
-          }}
-        >
-          <div style={styles.name}>
-            {item.leadId?.name || "Unknown Lead"}
-          </div>
+  /* ================= CARD ================= */
+  const renderCard = (item, type) => {
 
-          <div style={styles.phone}>
-            📞 {item.leadId?.phone || "-"}
-          </div>
+    const lead = item.leadId || {};
 
-          <div style={styles.date}>
-            📅{" "}
-            {item.nextFollowUpDate
-              ? new Date(item.nextFollowUpDate).toLocaleDateString()
-              : "-"}
-          </div>
-        </div>
-      ))
-    ) : (
-      <div style={styles.empty}>No follow-ups</div>
-    );
+    return (
+      <div
+        key={item._id}
+        style={{
+          ...styles.card,
+          borderLeft:
+            type === "overdue"
+              ? "4px solid #dc2626"
+              : type === "upcoming"
+              ? "4px solid #f59e0b"
+              : "4px solid #0d6efd",
+        }}
+        onClick={() => navigate(`/lead/${lead._id}`)}
+      >
 
-  return (
-    <div style={styles.wrapper}>
-      <div style={styles.container}>
+        {/* HEADER */}
+        <div style={styles.cardHeader}>
+          <div style={styles.name}>{lead.name || "Unknown Lead"}</div>
 
-        {/* TODAY */}
-        <div style={styles.section}>
-          <div style={styles.todayHeader}>
-            <span>Today's Follow-ups</span>
-            <span style={styles.countBadge}>{today.length}</span>
-          </div>
-          {renderList(today, "today")}
+          <button
+            style={styles.callBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.href = `tel:${lead.phone}`;
+            }}
+          >
+            <FaPhoneAlt />
+          </button>
         </div>
 
-        {/* OVERDUE */}
-        <div style={styles.section}>
-          <div style={styles.overdueHeader}>
-            <span>Overdue Follow-ups</span>
-            <span style={styles.countBadge}>{overdue.length}</span>
-          </div>
-          {renderList(overdue, "overdue")}
-        </div>
+        {/* DATES */}
+        <div style={styles.row}>
+  <div>
+    <div style={styles.label}>Created Date</div>
+    <div style={styles.value}>
+      {item.leadId?.createdAt
+        ? new Date(item.leadId.createdAt).toLocaleString()
+        : "-"}
+    </div>
+  </div>
 
-        {/* 🟡 UPCOMING */}
-        <div style={styles.section}>
-          <div style={styles.upcomingHeader}>
-            <span>Upcoming Follow-ups</span>
-            <span style={styles.countBadge}>{upcoming.length}</span>
+  <div>
+    <div style={styles.label}>Reminder Date</div>
+    <div style={styles.value}>
+      {item.nextFollowUpDate
+        ? new Date(item.nextFollowUpDate).toLocaleString()
+        : "-"}
+    </div>
+  </div>
+</div>
+
+        {/* STATUS */}
+        <div style={styles.row}>
+          <div>
+            <div style={styles.status}>
+              Status: {item.outcome || "Followup"}
+            </div>
+            <div style={styles.note}>
+              {item.notes || "-"}
+            </div>
           </div>
-          {renderList(upcoming, "upcoming")}
+
+          <div style={styles.purpose}>
+            Purpose: Followup
+          </div>
         </div>
 
       </div>
+    );
+  };
+
+  const renderSection = (title, list, type) => (
+    <div style={styles.section}>
+      <div style={styles.header}>
+        <span>{title}</span>
+        <span style={styles.badge}>{list.length}</span>
+      </div>
+
+      {list.length > 0
+        ? list.map((item) => renderCard(item, type))
+        : <div style={styles.empty}>No follow-ups</div>
+      }
+    </div>
+  );
+
+  return (
+    <div style={styles.wrapper}>
+
+      {/* BACK */}
+      <button onClick={()=>navigate(-1)} style={styles.back}>
+        <FiArrowLeft/> Back
+      </button>
+
+      <div style={styles.container}>
+
+        {/* ORDER FIXED */}
+        {renderSection("Today's Follow-ups", today, "today")}
+        {renderSection("Upcoming Follow-ups", upcoming, "upcoming")}
+        {renderSection("Overdue Follow-ups", overdue, "overdue")}
+
+      </div>
+
     </div>
   );
 }
 
-/* =========================
-   CSS STYLES
-========================= */
+/* ================= STYLES ================= */
 
 const styles = {
-  wrapper: {
-    padding: "30px",
-    background: "#f4f6f9",
-    minHeight: "100vh",
+
+  wrapper:{
+    padding:"20px",
+    background:"#f4f6f9",
+    minHeight:"100vh"
   },
 
-  container: {
-    maxWidth: "900px",
-    margin: "auto",
-    display: "flex",
-    flexDirection: "column",
-    gap: "30px",
+  back:{
+    border:"none",
+    background:"transparent",
+    cursor:"pointer",
+    marginBottom:"10px",
+    display:"flex",
+    alignItems:"center",
+    gap:"6px",
+    color:"#2563eb",
+    fontWeight:500
   },
 
-  section: {
-    background: "white",
-    padding: "20px",
-    borderRadius: "12px",
-    boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+  container:{
+    maxWidth:"900px",
+    margin:"auto",
+    display:"flex",
+    flexDirection:"column",
+    gap:"20px"
   },
 
-  todayHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "18px",
-    fontSize: "18px",
-    fontWeight: 600,
-    color: "#0f172a",
+  section:{
+    background:"#fff",
+    padding:"15px",
+    borderRadius:"10px",
+    boxShadow:"0 4px 12px rgba(0,0,0,0.05)"
   },
 
-  overdueHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "18px",
-    fontSize: "18px",
-    fontWeight: 600,
-    color: "#7f1d1d",
+  header:{
+    display:"flex",
+    justifyContent:"space-between",
+    marginBottom:"10px",
+    fontWeight:600
   },
 
-  upcomingHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "18px",
-    fontSize: "18px",
-    fontWeight: 600,
-    color: "#92400e",
+  badge:{
+    background:"#e5e7eb",
+    padding:"3px 10px",
+    borderRadius:"20px",
+    fontSize:"12px"
   },
 
-  countBadge: {
-    background: "#e2e8f0",
-    padding: "4px 12px",
-    borderRadius: "20px",
-    fontSize: "13px",
+  card:{
+    background:"#fff",
+    padding:"15px",
+    borderRadius:"10px",
+    marginBottom:"10px",
+    cursor:"pointer",
+    boxShadow:"0 2px 8px rgba(0,0,0,0.04)"
   },
 
-  card: {
-    padding: "14px 16px",
-    borderRadius: "10px",
-    background: "#fafafa",
-    marginBottom: "12px",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+  cardHeader:{
+    display:"flex",
+    justifyContent:"space-between",
+    alignItems:"center",
+    marginBottom:"10px"
   },
 
-  name: {
-    fontWeight: 600,
-    fontSize: "15px",
-    color: "#111827",
+  name:{
+    fontSize:"16px",
+    fontWeight:600
   },
 
-  phone: {
-    fontSize: "14px",
-    color: "#4b5563",
-    marginTop: "4px",
+  callBtn:{
+    border:"none",
+    background:"#fee2e2",
+    color:"#dc2626",
+    padding:"8px",
+    borderRadius:"50%",
+    cursor:"pointer"
   },
 
-  date: {
-    fontSize: "13px",
-    color: "#6b7280",
-    marginTop: "6px",
+  row:{
+    display:"flex",
+    justifyContent:"space-between",
+    marginBottom:"8px"
   },
 
-  empty: {
-    padding: "12px",
-    color: "#6b7280",
+  label:{
+    fontSize:"12px",
+    color:"#6b7280"
   },
+
+  value:{
+    fontSize:"13px",
+    fontWeight:500
+  },
+
+  status:{
+    fontWeight:600
+  },
+
+  note:{
+    fontSize:"13px",
+    color:"#6b7280"
+  },
+
+  purpose:{
+    fontWeight:600
+  },
+
+  empty:{
+    padding:"10px",
+    color:"#6b7280"
+  }
+
 };

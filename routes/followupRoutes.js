@@ -32,7 +32,7 @@ router.get("/today", protect, async (req, res) => {
     filter = applyRoleFilter(req, filter);
 
     const followups = await Activity.find(filter)
-      .populate("leadId", "name phone")
+      .populate("leadId", "name phone createdAt") // ✅ FIX ADDED
       .sort({ nextFollowUpDate: 1 });
 
     const validFollowups = followups.filter(f => f.leadId);
@@ -60,7 +60,7 @@ router.get("/overdue", protect, async (req, res) => {
     filter = applyRoleFilter(req, filter);
 
     const followups = await Activity.find(filter)
-      .populate("leadId", "name phone")
+      .populate("leadId", "name phone createdAt") // ✅ FIX ADDED
       .sort({ nextFollowUpDate: 1 });
 
     const validFollowups = followups.filter(f => f.leadId);
@@ -74,7 +74,7 @@ router.get("/overdue", protect, async (req, res) => {
 });
 
 /* =========================
-   🟡 UPCOMING FOLLOW-UPS (NEW)
+   UPCOMING FOLLOW-UPS
 ========================= */
 router.get("/upcoming", protect, async (req, res) => {
   try {
@@ -88,7 +88,7 @@ router.get("/upcoming", protect, async (req, res) => {
     filter = applyRoleFilter(req, filter);
 
     const followups = await Activity.find(filter)
-      .populate("leadId", "name phone")
+      .populate("leadId", "name phone createdAt") // ✅ FIX ADDED
       .sort({ nextFollowUpDate: 1 });
 
     const validFollowups = followups.filter(f => f.leadId);

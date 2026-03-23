@@ -317,11 +317,9 @@ borderRadius:"20px",
 fontSize:"12px",
 textTransform:"capitalize"
 },
-/////
 assigned:{
 fontSize:"13px",
 color:"#555",
 padding:"12px"
 }
-
 };

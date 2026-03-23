@@ -224,40 +224,89 @@ export default function Dashboard() {
       )}
 
       {/* 🔥 SCHEDULE */}
-      {activeTab === "schedule" && (
-        <div className="contentCard">
-          <h3>Today's Schedule</h3>
+{activeTab === "schedule" && (
+  <div className="contentCard">
+    <h3>Today's Schedule</h3>
 
-          {todayActivities.length === 0 ? (
-            <p>No activities scheduled for today.</p>
-          ) : (
-            todayActivities.map((item, i) => (
-              <div
-                key={i}
-                className="scheduleItem"
-                onClick={() => navigate(`/lead/${item.leadId?._id}`)}
-              >
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <div>{getActivityIcon(item.activityType)}</div>
+    {todayActivities.length === 0 ? (
+      <p>No activities scheduled for today.</p>
+    ) : (
+      todayActivities.map((item, i) => {
 
-                  <div>
-                    <div style={{ fontWeight: "600" }}>
-                      {item.leadId?.name || "Lead"}
-                    </div>
-                    <div style={{ fontSize: "13px", color: "#777" }}>
-                      {item.activityType}
-                    </div>
-                  </div>
+        const createdDate = item.leadId?.createdAt;
+        const followUpDate = item.nextFollowUpDate;
+
+        return (
+          <div
+            key={i}
+            onClick={() => navigate(`/lead/${item.leadId?._id}`)}
+            style={{
+              padding: "16px",
+              borderRadius: "12px",
+              background: "#fff",
+              marginBottom: "12px",
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+              borderLeft: "4px solid #2563eb",
+              transition: "0.2s"
+            }}
+          >
+
+            {/* TOP ROW */}
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              
+              <div>
+                <div style={{ fontWeight: "600", fontSize: "15px" }}>
+                  {item.leadId?.name || "Unknown Lead"}
                 </div>
 
-                <div style={{ fontSize: "13px", color: "#999" }}>
-                  {formatDateTime(item.activityDateTime || item.nextFollowUpDate)}
+                <div style={{ fontSize: "13px", color: "#666", marginTop: 4 }}>
+                  📞 {item.leadId?.phone || "-"}
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      )}
+
+              <div style={{ fontSize: "12px", color: "#999" }}>
+                {getActivityIcon(item.activityType)} {item.activityType}
+              </div>
+
+            </div>
+
+            {/* DATES */}
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+
+              <div>
+                <div style={{ fontSize: "12px", color: "#888" }}>Created</div>
+                <div style={{ fontSize: "13px" }}>
+                  {createdDate
+                    ? new Date(createdDate).toLocaleString("en-IN")
+                    : "-"}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: "12px", color: "#888" }}>Follow-up</div>
+                <div style={{ fontSize: "13px" }}>
+                  {followUpDate
+                    ? new Date(followUpDate).toLocaleString("en-IN")
+                    : "-"}
+                </div>
+              </div>
+
+            </div>
+
+            {/* TIME */}
+            <div style={{ marginTop: 10, fontSize: "12px", color: "#777" }}>
+              {formatDateTime(
+                item.activityDateTime || item.nextFollowUpDate
+              )}
+            </div>
+
+          </div>
+        );
+      })
+    )}
+  </div>
+)}
 
       {/* 🔥 CHART */}
       {activeTab === "dashboard" && (

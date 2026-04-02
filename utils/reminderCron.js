@@ -2,45 +2,67 @@ const cron = require("node-cron");
 const Lead = require("../models/Lead");
 
 /* =========================
-   REMINDER CRON JOB
+   🔔 REMINDER CRON JOB (FINAL)
    Runs every 1 minute
 ========================= */
 
 const startReminderCron = () => {
 
   cron.schedule("* * * * *", async () => {
-    console.log("⏰ Checking reminders...");
-
     try {
       const now = new Date();
 
-      // Find leads where reminder is due & not sent
+      /* =========================
+         GET DUE REMINDERS
+      ========================== */
+
       const leads = await Lead.find({
         reminderDate: { $lte: now },
         reminderSent: false,
         isDeleted: false
-      }).populate("assignedTo createdBy");
+      })
+      .select("_id name purpose status reminderDate assignedTo")
+      .lean(); // ✅ performance boost
 
-      if (leads.length === 0) return;
+      if (!leads.length) return;
 
       console.log(`🔔 ${leads.length} reminders triggered`);
 
+      /* =========================
+         PROCESS EACH LEAD
+      ========================== */
+
       for (const lead of leads) {
 
-        // 👉 Here you can later send:
-        // - Push notification
-        // - Email
-        // - Socket event
+        const notificationPayload = {
+          _id: lead._id.toString(), // ✅ IMPORTANT (frontend safe)
+          name: lead.name || "Lead",
+          purpose: lead.purpose || "followup",
+          status: lead.status || "new",
+          reminderDate: lead.reminderDate,
+        };
 
-        console.log(`📢 Reminder for Lead: ${lead.name}`);
+        /* =========================
+           🔥 REAL-TIME SOCKET EMIT
+        ========================== */
 
-        // Mark as sent
-        lead.reminderSent = true;
-        await lead.save();
+        if (global.io) {
+          global.io.emit("new_notification", notificationPayload);
+        }
+
+        /* =========================
+           MARK AS SENT
+        ========================== */
+
+        await Lead.updateOne(
+          { _id: lead._id },
+          { $set: { reminderSent: true } }
+        );
+
       }
 
     } catch (error) {
-      console.error("❌ Reminder Cron Error:", error);
+      console.error("❌ Reminder Cron Error:", error.message);
     }
   });
 

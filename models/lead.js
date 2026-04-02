@@ -37,7 +37,6 @@ const leadSchema = new mongoose.Schema(
     required: [true, "Email is required"],
     trim: true,
     lowercase: true,
-
     validate: {
       validator: emailValidator,
       message: "Invalid email format"
@@ -48,7 +47,6 @@ const leadSchema = new mongoose.Schema(
     type: String,
     required: [true, "Phone number is required"],
     trim: true,
-
     validate: {
       validator: phoneValidator,
       message: "Invalid phone number"
@@ -74,7 +72,24 @@ const leadSchema = new mongoose.Schema(
   },
 
   /* =========================
-     LEAD PRIORITY
+     PURPOSE (🔥 FIX FOR YOUR UI ISSUE)
+  ========================= */
+
+  purpose: {
+    type: String,
+    enum: [
+      "call",
+      "meeting",
+      "site_visit",
+      "followup",
+      "negotiation",
+      "closure"
+    ],
+    default: "followup"
+  },
+
+  /* =========================
+     PRIORITY
   ========================= */
 
   priority: {
@@ -84,7 +99,7 @@ const leadSchema = new mongoose.Schema(
   },
 
   /* =========================
-     LEAD SOURCE
+     SOURCE
   ========================= */
 
   source: {
@@ -95,7 +110,7 @@ const leadSchema = new mongoose.Schema(
   },
 
   /* =========================
-     CUSTOMER LOCATION
+     LOCATION
   ========================= */
 
   location: {
@@ -105,7 +120,7 @@ const leadSchema = new mongoose.Schema(
   },
 
   /* =========================
-     CUSTOMER BUDGET
+     BUDGET
   ========================= */
 
   budget: {
@@ -114,7 +129,7 @@ const leadSchema = new mongoose.Schema(
   },
 
   /* =========================
-     SALES NOTES
+     NOTES
   ========================= */
 
   notes: {
@@ -124,7 +139,7 @@ const leadSchema = new mongoose.Schema(
   },
 
   /* =========================
-     TAGS (marketing)
+     TAGS
   ========================= */
 
   tags: [
@@ -134,7 +149,7 @@ const leadSchema = new mongoose.Schema(
   ],
 
   /* =========================
-     LEAD CREATOR
+     USER RELATIONS
   ========================= */
 
   createdBy: {
@@ -143,10 +158,6 @@ const leadSchema = new mongoose.Schema(
     required: true
   },
 
-  /* =========================
-     ASSIGNED SALES AGENT
-  ========================= */
-
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -154,12 +165,45 @@ const leadSchema = new mongoose.Schema(
   },
 
   /* =========================
-     NEXT FOLLOWUP DATE
+     REMINDER SYSTEM (🔥 CORE)
+  ========================= */
+
+  reminderDate: {
+    type: Date,
+    default: null
+  },
+
+  reminderSent: {
+    type: Boolean,
+    default: false
+  },
+
+  reminderRead: {
+    type: Boolean,
+    default: false
+  },
+
+  /* =========================
+     FOLLOW-UP TRACKING
   ========================= */
 
   nextFollowUpDate: {
     type: Date,
     default: null
+  },
+
+  lastContactedAt: {
+    type: Date,
+    default: null
+  },
+
+  /* =========================
+     ROLE ACCESS CONTROL
+  ========================= */
+
+  visibleToRoles: {
+    type: [String],
+    default: ["admin", "sales"]
   },
 
   /* =========================
@@ -178,7 +222,7 @@ const leadSchema = new mongoose.Schema(
 );
 
 /* =========================
-   INDEXES (FAST SEARCH)
+   INDEXES (FAST PERFORMANCE)
 ========================= */
 
 leadSchema.index({ email: 1 });
@@ -186,5 +230,7 @@ leadSchema.index({ phone: 1 });
 leadSchema.index({ status: 1 });
 leadSchema.index({ assignedTo: 1 });
 leadSchema.index({ createdAt: -1 });
+leadSchema.index({ reminderDate: 1 });
+leadSchema.index({ reminderSent: 1 });
 
 module.exports = mongoose.model("Lead", leadSchema);

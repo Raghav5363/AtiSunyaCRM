@@ -2,7 +2,7 @@ console.log("✅ leadRoutes loaded");
 
 const express = require("express");
 const mongoose = require("mongoose");
-const Lead = require("../models/lead");
+const Lead = require("../models/Lead");
 const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
 
@@ -413,6 +413,76 @@ router.get("/:id", protect, async (req, res) => {
 
     console.log(err);
     res.status(500).json({ message: "Load lead failed" });
+
+  }
+});
+/* =========================
+   GET REMINDER NOTIFICATIONS
+========================= */
+
+router.get("/notifications", protect, async (req, res) => {
+
+  try {
+
+    const filter = {
+      reminderSent: true,
+      reminderRead: false,
+      isDeleted: false
+    };
+
+    // Role-based filtering
+    if (req.user.role === "sales_agent") {
+      filter.assignedTo = req.user.id;
+    }
+
+    if (req.user.role === "sales_manager") {
+
+      const agents = await User.find({ role: "sales_agent" }).select("_id");
+
+      filter.assignedTo = {
+        $in: agents.map(a => a._id)
+      };
+    }
+
+    const notifications = await Lead.find(filter)
+      .select("name reminderDate purpose status")
+      .sort({ reminderDate: -1 });
+
+    res.json({
+      count: notifications.length,
+      data: notifications
+    });
+
+  } catch (err) {
+
+    console.log("Notification error:", err);
+    res.status(500).json({ message: "Failed to load notifications" });
+
+  }
+});
+/* =========================
+   MARK NOTIFICATION AS READ
+========================= */
+
+router.put("/notifications/:id/read", protect, async (req, res) => {
+
+  try {
+
+    const lead = await Lead.findById(req.params.id);
+
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    lead.reminderRead = true;
+    await lead.save();
+
+    res.json({ message: "Notification marked as read" });
+
+  } catch (err) {
+
+    console.log(err);
+    res.status(500).json({ message: "Failed to update notification" });
 
   }
 });

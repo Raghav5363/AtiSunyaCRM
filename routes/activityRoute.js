@@ -1,6 +1,6 @@
 const express = require("express");
 const Activity = require("../models/activity");
-const Lead = require("../models/lead");
+const Lead = require("../models/Lead");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
 
 const router = express.Router();

@@ -232,5 +232,7 @@ leadSchema.index({ assignedTo: 1 });
 leadSchema.index({ createdAt: -1 });
 leadSchema.index({ reminderDate: 1 });
 leadSchema.index({ reminderSent: 1 });
+leadSchema.index({ reminderSent: 1, reminderRead: 1, reminderDate: 1, assignedTo: 1 });
+leadSchema.index({ nextFollowUpDate: 1, assignedTo: 1 });
 
 module.exports = mongoose.model("Lead", leadSchema);

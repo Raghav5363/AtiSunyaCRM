@@ -2,10 +2,9 @@ import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiPhone } from "react-icons/fi";
 
 export default function Leads() {
-
   const [leads, setLeads] = useState([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -14,34 +13,27 @@ export default function Leads() {
   const location = useLocation();
 
   const token = localStorage.getItem("token") || "";
-
-  const BASE_URL =
-    process.env.REACT_APP_API_URL || "http://localhost:5000";
-
+  const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
   const API = `${BASE_URL}/api/leads`;
 
-  /* ================= FILTER FROM URL ================= */
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const status = params.get("status");
     setFilterStatus(status || "all");
   }, [location.search]);
 
-  /* ================= FETCH ================= */
   const fetchLeads = useCallback(async () => {
     try {
       let url = API;
-
       if (filterStatus !== "all") {
         url += `?status=${filterStatus}`;
       }
 
       const res = await axios.get(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       setLeads(Array.isArray(res.data) ? res.data : []);
-
     } catch (err) {
       console.error(err);
       toast.error("Failed to load leads");
@@ -52,16 +44,13 @@ export default function Leads() {
     fetchLeads();
   }, [fetchLeads]);
 
-  /* ================= FILTER + SEARCH + SORT ================= */
   const filteredLeads = leads
     .filter((lead) => {
-
       if (filterStatus !== "all" && lead?.status !== filterStatus) {
         return false;
       }
 
       const s = search.toLowerCase();
-
       return (
         (lead?.name || "").toLowerCase().includes(s) ||
         (lead?.email || "").toLowerCase().includes(s) ||
@@ -69,20 +58,6 @@ export default function Leads() {
       );
     })
     .sort((a, b) => new Date(b?.createdAt) - new Date(a?.createdAt));
-
-  /* ================= STATUS COLOR ================= */
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "new": return "#2563eb";
-      case "followup": return "#f59e0b";
-      case "closed": return "#10b981";
-      case "junk": return "#6b7280";
-      case "not_interested": return "#ef4444";
-      case "site_visit_planned": return "#7c3aed";
-      case "site_visit_done": return "#06b6d4";
-      default: return "#64748b";
-    }
-  };
 
   const filters = [
     "all",
@@ -92,18 +67,15 @@ export default function Leads() {
     "site_visit_done",
     "not_interested",
     "junk",
-    "closed"
+    "closed",
   ];
 
   return (
     <div style={styles.page}>
-
-      {/* BACK */}
       <button onClick={() => navigate(-1)} style={styles.backBtn}>
         <FiArrowLeft /> Back
       </button>
 
-      {/* SEARCH */}
       <input
         placeholder="Search leads..."
         value={search}
@@ -111,218 +83,189 @@ export default function Leads() {
         style={styles.search}
       />
 
-      {/* FILTERS */}
       <div style={styles.filterWrap}>
-        {filters.map((f) => (
+        {filters.map((filter) => (
           <button
-            key={f}
+            key={filter}
             onClick={() => {
-              setFilterStatus(f);
-              navigate(`/leads${f === "all" ? "" : `?status=${f}`}`);
+              setFilterStatus(filter);
+              navigate(`/leads${filter === "all" ? "" : `?status=${filter}`}`);
             }}
             style={{
               ...styles.filterBtn,
-              background: filterStatus === f ? "#2563eb" : "#fff",
-              color: filterStatus === f ? "#fff" : "#333"
+              background: filterStatus === filter ? "#2563eb" : "var(--card)",
+              color: filterStatus === filter ? "#fff" : "var(--text)",
+              borderColor: filterStatus === filter ? "#2563eb" : "var(--border)",
             }}
           >
-            {f.replaceAll("_", " ")}
+            {filter.replaceAll("_", " ")}
           </button>
         ))}
       </div>
 
-      {/* LEADS LIST */}
       <div style={styles.grid}>
-
         {filteredLeads.length === 0 ? (
-          <p>No leads found</p>
+          <p style={styles.empty}>No leads found</p>
         ) : (
           filteredLeads.map((lead) => (
-
             <div
               key={lead._id}
               style={styles.card}
               onClick={() => navigate(`/lead/${lead._id}`)}
             >
-
-              {/* HEADER */}
               <div style={styles.headerRow}>
-
-                <div style={styles.name}>
-                  {lead?.name || "No Name"}
-                </div>
+                <div style={styles.name}>{lead?.name || "No Name"}</div>
 
                 <a
                   href={`tel:${lead?.phone || ""}`}
                   style={styles.callBtn}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  📞
+                  <FiPhone />
                 </a>
-
               </div>
 
-              {/* DATES */}
-              <div style={styles.row}>
-                <div>
-                  <div style={styles.label}>Created Date</div>
-                  <div style={styles.value}>
-                    {lead?.createdAt
-                      ? new Date(lead.createdAt).toLocaleString()
-                      : "-"}
-                  </div>
-                </div>
-
-                <div>
-                  <div style={styles.label}>Reminder Date</div>
-                  <div style={styles.value}>
-                    {lead?.reminderDate
-                      ? new Date(lead.reminderDate).toLocaleString()
-                      : "-"}
-                  </div>
-                </div>
-              </div>
-
-              {/* STATUS + PURPOSE */}
-              <div style={styles.row}>
+              <div style={styles.compactRow}>
                 <div>
                   <div style={styles.label}>Status</div>
-                  <div style={{
-                    ...styles.statusText,
-                    color: getStatusColor(lead?.status)
-                  }}>
-                    {lead?.status?.replaceAll("_", " ") || "-"}
-                  </div>
+                  <div style={styles.value}>{lead?.status?.replaceAll("_", " ") || "-"}</div>
                 </div>
 
                 <div>
                   <div style={styles.label}>Purpose</div>
+                  <div style={styles.value}>{lead?.purpose || "Followup"}</div>
+                </div>
+              </div>
+
+              <div style={styles.compactRow}>
+                <div>
+                  <div style={styles.label}>Created</div>
                   <div style={styles.value}>
-                    {lead?.purpose || "Followup"}
+                    {lead?.createdAt ? new Date(lead.createdAt).toLocaleDateString("en-IN") : "-"}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={styles.label}>Reminder</div>
+                  <div style={styles.value}>
+                    {lead?.reminderDate || lead?.nextFollowUpDate
+                      ? new Date(lead.reminderDate || lead.nextFollowUpDate).toLocaleDateString("en-IN")
+                      : "-"}
                   </div>
                 </div>
               </div>
 
-              {/* NOTES */}
-              <div style={styles.notes}>
-                {lead?.notes || "No notes"}
-              </div>
-
+              <div style={styles.notes}>{lead?.notes || "No notes"}</div>
             </div>
-
           ))
         )}
-
       </div>
-
     </div>
   );
 }
 
-/* ================= STYLES ================= */
-
 const styles = {
-
   page: {
-    padding: "16px",
-    background: "#f5f7fb",
-    minHeight: "100vh"
+    padding: "14px",
+    background: "var(--bg)",
+    minHeight: "100vh",
   },
-
   backBtn: {
     border: "none",
     background: "transparent",
     color: "#2563eb",
     cursor: "pointer",
-    marginBottom: "10px"
+    marginBottom: "10px",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontWeight: 700,
   },
-
   search: {
     width: "100%",
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #ddd",
-    marginBottom: "15px"
+    padding: "12px",
+    borderRadius: "12px",
+    border: "1px solid var(--border)",
+    marginBottom: "12px",
+    background: "var(--card)",
+    color: "var(--text)",
   },
-
   filterWrap: {
     display: "flex",
     gap: "8px",
     flexWrap: "wrap",
-    marginBottom: "15px"
+    marginBottom: "14px",
   },
-
   filterBtn: {
-    padding: "6px 12px",
-    borderRadius: "6px",
-    border: "1px solid #ddd",
+    padding: "8px 12px",
+    borderRadius: "999px",
+    border: "1px solid var(--border)",
     cursor: "pointer",
-    fontSize: "13px"
+    fontSize: "12px",
+    textTransform: "capitalize",
+    fontWeight: 700,
   },
-
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-    gap: "15px"
+    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+    gap: "12px",
   },
-
   card: {
-    background: "#fff",
-    padding: "16px",
-    borderRadius: "12px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-    cursor: "pointer"
+    background: "var(--card)",
+    padding: "14px",
+    borderRadius: "18px",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
+    cursor: "pointer",
+    border: "1px solid var(--border)",
   },
-
   headerRow: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "10px"
+    alignItems: "flex-start",
+    marginBottom: "10px",
+    gap: 10,
   },
-
   name: {
-    fontWeight: "600",
-    fontSize: "16px"
+    fontWeight: "700",
+    fontSize: "16px",
+    color: "var(--heading)",
   },
-
   callBtn: {
-    width: "36px",
-    height: "36px",
+    width: "34px",
+    height: "34px",
     borderRadius: "50%",
     background: "#fee2e2",
+    color: "#dc2626",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    textDecoration: "none"
+    textDecoration: "none",
+    flexShrink: 0,
   },
-
-  row: {
-    display: "flex",
-    justifyContent: "space-between",
+  compactRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "10px",
     marginBottom: "10px",
-    gap: "10px"
   },
-
   label: {
-    fontSize: "12px",
-    color: "#777"
+    fontSize: "11px",
+    color: "var(--text)",
+    marginBottom: 4,
   },
-
   value: {
-    fontSize: "13px",
-    fontWeight: "500"
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "var(--heading)",
+    textTransform: "capitalize",
   },
-
-  statusText: {
-    fontSize: "14px",
-    fontWeight: "600"
-  },
-
   notes: {
     fontSize: "12px",
-    color: "#555",
-    marginTop: "5px"
-  }
-
+    color: "var(--text)",
+    marginTop: "4px",
+    lineHeight: 1.5,
+  },
+  empty: {
+    color: "var(--text)",
+  },
 };

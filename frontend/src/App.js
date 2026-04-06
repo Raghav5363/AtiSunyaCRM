@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Dashboard from "./pages/Dashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import Users from "./pages/Users";
 import Reports from "./pages/Reports";
 
@@ -121,6 +122,17 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <Reports />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin-dashboard"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <AdminDashboard />
               </Layout>
             </ProtectedRoute>
           }

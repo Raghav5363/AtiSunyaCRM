@@ -1,12 +1,19 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
-  FiUsers,
-  FiCalendar,
+  FiActivity,
   FiBarChart2,
+  FiCalendar,
+  FiCheckCircle,
+  FiClock,
+  FiMapPin,
+  FiSlash,
+  FiTarget,
+  FiTrendingUp,
+  FiUsers,
   FiPhone,
   FiMail,
-  FiMessageCircle
+  FiMessageCircle,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
@@ -17,7 +24,7 @@ import {
   Legend,
   CategoryScale,
   LinearScale,
-  BarElement
+  BarElement,
 } from "chart.js";
 
 import { Pie, Bar } from "react-chartjs-2";
@@ -32,24 +39,20 @@ ChartJS.register(
   BarElement
 );
 
-/* ================= DATE FORMAT ================= */
+const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const formatDateTime = (date) => {
   if (!date) return "--";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "--";
 
-  const d = new Date(date);
-
-  if (isNaN(d)) return "--";
-
-  return d.toLocaleString("en-IN", {
+  return parsed.toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
   });
 };
-
-/* ================= ACTIVITY ICON ================= */
 
 const getActivityIcon = (type) => {
   switch (type) {
@@ -65,8 +68,9 @@ const getActivityIcon = (type) => {
 };
 
 export default function Dashboard() {
-
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role") || "sales_agent";
 
   const [stats, setStats] = useState({
     total: 0,
@@ -76,73 +80,145 @@ export default function Dashboard() {
     junk: 0,
     closed: 0,
     site_visit_planned: 0,
-    site_visit_done: 0
+    site_visit_done: 0,
   });
-
   const [monthly, setMonthly] = useState([]);
   const [schedule, setSchedule] = useState([]);
+  const [team, setTeam] = useState([]);
   const [activeTab, setActiveTab] = useState("summary");
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem("token");
-
-  const BASE_URL =
-    process.env.REACT_APP_API_URL || "http://localhost:5000";
-
-  /* ================= FETCH ================= */
+  const authHeaders = useMemo(
+    () => ({
+      headers: { Authorization: token ? `Bearer ${token}` : "" },
+    }),
+    [token]
+  );
 
   const fetchStats = useCallback(async () => {
-    try {
-      const res = await axios.get(`${BASE_URL}/api/leads/stats/summary`, {
-        headers: { Authorization: token ? `Bearer ${token}` : "" }
-      });
-      setStats(res.data);
-    } catch (err) {
-      console.log("Stats error:", err);
-    }
-  }, [BASE_URL, token]);
+    const res = await axios.get(`${BASE_URL}/api/leads/stats/summary`, authHeaders);
+    setStats(res.data || {});
+  }, [authHeaders]);
 
   const fetchMonthly = useCallback(async () => {
-    try {
-      const res = await axios.get(`${BASE_URL}/api/leads/stats/monthly`, {
-        headers: { Authorization: token ? `Bearer ${token}` : "" }
-      });
-      setMonthly(res.data);
-    } catch (err) {
-      console.log("Monthly error:", err);
-    }
-  }, [BASE_URL, token]);
+    const res = await axios.get(`${BASE_URL}/api/leads/stats/monthly`, authHeaders);
+    setMonthly(res.data || []);
+  }, [authHeaders]);
 
   const fetchSchedule = useCallback(async () => {
+    const res = await axios.get(`${BASE_URL}/api/activities/today`, authHeaders);
+    setSchedule(Array.isArray(res.data) ? res.data : []);
+  }, [authHeaders]);
+
+  const fetchTeam = useCallback(async () => {
+    if (role === "sales_agent") return;
+
     try {
-      const res = await axios.get(`${BASE_URL}/api/activities/today`, {
-        headers: { Authorization: token ? `Bearer ${token}` : "" }
-      });
-      setSchedule(res.data);
-    } catch (err) {
-      console.log("Schedule error:", err);
+      const res = await axios.get(`${BASE_URL}/api/leads/stats/team`, authHeaders);
+      setTeam(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setTeam([]);
     }
-  }, [BASE_URL, token]);
+  }, [authHeaders, role]);
 
   useEffect(() => {
     const loadDashboard = async () => {
       setLoading(true);
 
-      await Promise.all([
-        fetchStats(),
-        fetchMonthly(),
-        fetchSchedule()
-      ]);
-
-      setLoading(false);
+      try {
+        await Promise.all([
+          fetchStats(),
+          fetchMonthly(),
+          fetchSchedule(),
+          fetchTeam(),
+        ]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadDashboard();
-  }, [fetchStats, fetchMonthly, fetchSchedule]);
+  }, [fetchMonthly, fetchSchedule, fetchStats, fetchTeam]);
 
-  const todayActivities = schedule;
+  const tabs = useMemo(() => {
+    const baseTabs = [
+      { key: "summary", label: "Lead Summary", icon: <FiUsers /> },
+      { key: "schedule", label: "Today's Schedule", icon: <FiCalendar /> },
+      { key: "insights", label: "Dashboard", icon: <FiBarChart2 /> },
+    ];
 
-  /* ================= CHART DATA ================= */
+    if (role === "sales_manager") {
+      baseTabs.push({ key: "team", label: "Team Dashboard", icon: <FiUsers /> });
+    }
+
+    return baseTabs;
+  }, [role]);
+
+  const summaryCards = [
+    {
+      title: role === "sales_agent" ? "My Total" : "Total",
+      value: stats.total,
+      accent: "#0f766e",
+      path: "/leads",
+      icon: <FiTarget />,
+    },
+    {
+      title: "New",
+      value: stats.new,
+      accent: "#2563eb",
+      path: "/leads?status=new",
+      icon: <FiTrendingUp />,
+    },
+    {
+      title: "Follow Up",
+      value: stats.followup,
+      accent: "#f59e0b",
+      path: "/leads?status=followup",
+      icon: <FiClock />,
+    },
+    {
+      title: "Not Interested",
+      value: stats.not_interested,
+      accent: "#ef4444",
+      path: "/leads?status=not_interested",
+      icon: <FiSlash />,
+    },
+    {
+      title: "Junk",
+      value: stats.junk,
+      accent: "#64748b",
+      path: "/leads?status=junk",
+      icon: <FiActivity />,
+    },
+    {
+      title: "Closed",
+      value: stats.closed,
+      accent: "#10b981",
+      path: "/leads?status=closed",
+      icon: <FiCheckCircle />,
+    },
+    {
+      title: "Site Visit Planned",
+      value: stats.site_visit_planned,
+      accent: "#7c3aed",
+      path: "/leads?status=site_visit_planned",
+      icon: <FiMapPin />,
+    },
+    {
+      title: "Site Visit Done",
+      value: stats.site_visit_done,
+      accent: "#06b6d4",
+      path: "/leads?status=site_visit_done",
+      icon: <FiCheckCircle />,
+    },
+  ];
+
+  const teamSummary = {
+    members: team.length,
+    assignedLeads: team.reduce((sum, item) => sum + (item.total || 0), 0),
+    converted: team.reduce((sum, item) => sum + (item.converted || 0), 0),
+    followups: team.reduce((sum, item) => sum + (item.followups || 0), 0),
+  };
 
   const pieData = {
     labels: [
@@ -152,173 +228,266 @@ export default function Dashboard() {
       "Junk",
       "Closed",
       "Site Visit Planned",
-      "Site Visit Done"
+      "Site Visit Done",
     ],
     datasets: [
       {
         data: [
-          stats.new,
-          stats.followup,
-          stats.not_interested,
-          stats.junk,
-          stats.closed,
-          stats.site_visit_planned,
-          stats.site_visit_done
+          stats.new || 0,
+          stats.followup || 0,
+          stats.not_interested || 0,
+          stats.junk || 0,
+          stats.closed || 0,
+          stats.site_visit_planned || 0,
+          stats.site_visit_done || 0,
         ],
         backgroundColor: [
           "#2563eb",
           "#f59e0b",
           "#ef4444",
-          "#9ca3af",
+          "#94a3b8",
           "#10b981",
-          "#6366f1",
-          "#06b6d4"
-        ]
-      }
-    ]
+          "#7c3aed",
+          "#06b6d4",
+        ],
+      },
+    ],
   };
 
   const barData = {
-    labels: monthly.map(m =>
-      new Date(0, m._id - 1).toLocaleString("default", { month: "short" })
+    labels: monthly.map((m) =>
+      new Date(0, (m._id || 1) - 1).toLocaleString("default", { month: "short" })
     ),
     datasets: [
       {
         label: "Leads",
-        data: monthly.map(m => m.count),
-        backgroundColor: "#6366f1"
-      }
-    ]
+        data: monthly.map((m) => m.count || 0),
+        backgroundColor: "#2563eb",
+        borderRadius: 10,
+      },
+    ],
   };
+
+  const pieOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            boxWidth: 10,
+            padding: 14,
+            font: { size: 11 },
+          },
+        },
+      },
+    }),
+    []
+  );
+
+  const barOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false,
+          },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0,
+          },
+        },
+      },
+    }),
+    []
+  );
 
   if (loading) {
     return (
       <div className="dashboard">
-        <p style={{ textAlign: "center" }}>Loading dashboard...</p>
+        <div className="dashboardHero">
+          <div>
+            <p className="eyebrow">CRM Dashboard</p>
+            <h1>Loading workspace...</h1>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="dashboard">
-
-      {/* 🔥 TABS */}
-      <div className="tabs">
-        <Tab icon={<FiUsers />} label="Lead Summary" active={activeTab === "summary"} onClick={() => setActiveTab("summary")} />
-        <Tab icon={<FiCalendar />} label="Today's Schedule" active={activeTab === "schedule"} onClick={() => setActiveTab("schedule")} />
-        <Tab icon={<FiBarChart2 />} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
+      <div className="dashboardHero">
+        <div>
+          <p className="eyebrow">{role.replace(/_/g, " ")}</p>
+          <h1>
+            {role === "admin"
+              ? "Business command center"
+              : role === "sales_manager"
+                ? "Team performance overview"
+                : "Your daily sales cockpit"}
+          </h1>
+          <p className="heroSub">
+            Track leads, follow-ups, conversions, and daily work from one place.
+          </p>
+        </div>
+        <div className="heroStats">
+          <div className="heroStat">
+            <FiTrendingUp />
+            <span>{stats.closed || 0} closed</span>
+          </div>
+          <div className="heroStat">
+            <FiActivity />
+            <span>{schedule.length} tasks today</span>
+          </div>
+        </div>
       </div>
 
-      {/* 🔥 SUMMARY */}
+      <div className="tabs tabsAuto">
+        {tabs.map((tab) => (
+          <Tab
+            key={tab.key}
+            icon={tab.icon}
+            label={tab.label}
+            active={activeTab === tab.key}
+            onClick={() => setActiveTab(tab.key)}
+          />
+        ))}
+      </div>
+
       {activeTab === "summary" && (
-        <div className="kpiWrapper">
-          <KpiCard title="All Leads" value={stats.total} onClick={() => navigate("/leads")} />
-          <KpiCard title="New Leads" value={stats.new} onClick={() => navigate("/leads?status=new")} />
-          <KpiCard title="Follow Up" value={stats.followup} onClick={() => navigate("/leads?status=followup")} />
-          <KpiCard title="Not Interested" value={stats.not_interested} onClick={() => navigate("/leads?status=not_interested")} />
-          <KpiCard title="Junk" value={stats.junk} onClick={() => navigate("/leads?status=junk")} />
-          <KpiCard title="Closed" value={stats.closed} onClick={() => navigate("/leads?status=closed")} />
-          <KpiCard title="Site Visit Planned" value={stats.site_visit_planned} onClick={() => navigate("/leads?status=site_visit_planned")} />
-          <KpiCard title="Site Visit Done" value={stats.site_visit_done} onClick={() => navigate("/leads?status=site_visit_done")} />
+        <>
+          <div className="kpiWrapper kpiWrapperWide">
+            {summaryCards.map((card) => (
+              <KpiCard
+                key={card.title}
+                title={card.title}
+                value={card.value}
+                accent={card.accent}
+                icon={card.icon}
+                onClick={() => navigate(card.path)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeTab === "schedule" && (
+        <div className="contentCard">
+          <div className="sectionHeader">
+            <div>
+              <h3>Today&apos;s schedule</h3>
+              <p>Calls, meetings, and follow-ups planned for today.</p>
+            </div>
+          </div>
+
+          {schedule.length === 0 ? (
+            <p className="emptyText">No activities scheduled for today.</p>
+          ) : (
+            schedule.map((item, index) => (
+              <div
+                key={`${item._id}-${index}`}
+                className="scheduleCard"
+                onClick={() => navigate(`/lead/${item.leadId?._id}`)}
+              >
+                <div className="scheduleTop">
+                  <div>
+                    <div className="scheduleName">{item.leadId?.name || "Unknown Lead"}</div>
+                    <div className="schedulePhone">{item.leadId?.phone || "-"}</div>
+                  </div>
+                  <div className="scheduleType">
+                    {getActivityIcon(item.activityType)}
+                    <span>{item.activityType || "activity"}</span>
+                  </div>
+                </div>
+                <div className="scheduleMeta">
+                  <div>
+                    <span className="metaLabel">Created</span>
+                    <span>{formatDateTime(item.leadId?.createdAt)}</span>
+                  </div>
+                  <div>
+                    <span className="metaLabel">Reminder</span>
+                    <span>{formatDateTime(item.nextFollowUpDate)}</span>
+                  </div>
+                </div>
+                <div className="scheduleFooter">
+                  {formatDateTime(item.activityDateTime || item.nextFollowUpDate)}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
-      {/* 🔥 SCHEDULE */}
-{activeTab === "schedule" && (
-  <div className="contentCard">
-    <h3>Today's Schedule</h3>
-
-    {todayActivities.length === 0 ? (
-      <p>No activities scheduled for today.</p>
-    ) : (
-      todayActivities.map((item, i) => {
-
-        const createdDate = item.leadId?.createdAt;
-        const followUpDate = item.nextFollowUpDate;
-
-        return (
-          <div
-            key={i}
-            onClick={() => navigate(`/lead/${item.leadId?._id}`)}
-            style={{
-              padding: "16px",
-              borderRadius: "12px",
-              background: "#fff",
-              marginBottom: "12px",
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-              borderLeft: "4px solid #2563eb",
-              transition: "0.2s"
-            }}
-          >
-
-            {/* TOP ROW */}
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              
-              <div>
-                <div style={{ fontWeight: "600", fontSize: "15px" }}>
-                  {item.leadId?.name || "Unknown Lead"}
-                </div>
-
-                <div style={{ fontSize: "13px", color: "#666", marginTop: 4 }}>
-                  📞 {item.leadId?.phone || "-"}
-                </div>
-              </div>
-
-              <div style={{ fontSize: "12px", color: "#999" }}>
-                {getActivityIcon(item.activityType)} {item.activityType}
-              </div>
-
-            </div>
-
-            {/* DATES */}
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-
-              <div>
-                <div style={{ fontSize: "12px", color: "#888" }}>Created</div>
-                <div style={{ fontSize: "13px" }}>
-                  {createdDate
-                    ? new Date(createdDate).toLocaleString("en-IN")
-                    : "-"}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: "12px", color: "#888" }}>Follow-up</div>
-                <div style={{ fontSize: "13px" }}>
-                  {followUpDate
-                    ? new Date(followUpDate).toLocaleString("en-IN")
-                    : "-"}
-                </div>
-              </div>
-
-            </div>
-
-            {/* TIME */}
-            <div style={{ marginTop: 10, fontSize: "12px", color: "#777" }}>
-              {formatDateTime(
-                item.activityDateTime || item.nextFollowUpDate
-              )}
-            </div>
-
-          </div>
-        );
-      })
-    )}
-  </div>
-)}
-
-      {/* 🔥 CHART */}
-      {activeTab === "dashboard" && (
+      {activeTab === "insights" && (
         <div className="chartSection">
           <div className="chartCard">
-            <h3>Status Distribution</h3>
-            <Pie data={pieData} />
+            <h3>Status distribution</h3>
+            <div className="chartCanvas">
+              <Pie data={pieData} options={pieOptions} />
+            </div>
+          </div>
+          <div className="chartCard">
+            <h3>Monthly leads</h3>
+            <div className="chartCanvas">
+              <Bar data={barData} options={barOptions} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "team" && role === "sales_manager" && (
+        <div className="dashboardGrid">
+          <div className="contentCard">
+            <div className="sectionHeader">
+              <div>
+                <h3>Manager overview</h3>
+                <p>Live team numbers based on assigned pipeline.</p>
+              </div>
+            </div>
+
+            <div className="miniGrid">
+              <MiniCard title="Team Members" value={teamSummary.members} />
+              <MiniCard title="Assigned Leads" value={teamSummary.assignedLeads} />
+              <MiniCard title="Converted" value={teamSummary.converted} />
+              <MiniCard title="Follow Ups" value={teamSummary.followups} />
+            </div>
           </div>
 
-          <div className="chartCard">
-            <h3>Monthly Leads</h3>
-            <Bar data={barData} />
+          <div className="contentCard">
+            <div className="sectionHeader">
+              <div>
+                <h3>Team leaderboard</h3>
+                <p>Who owns the most active pipeline right now.</p>
+              </div>
+            </div>
+
+            {team.length === 0 ? (
+              <p className="emptyText">No team performance data yet.</p>
+            ) : (
+              team.map((member, index) => (
+                <div key={`${member.user?._id || "unassigned"}-${index}`} className="leaderRow">
+                  <div>
+                    <div className="leaderName">{member.user?.email || "Unassigned"}</div>
+                    <div className="leaderMeta">{member.followups || 0} in follow-up</div>
+                  </div>
+                  <div className="leaderStats">
+                    <span>{member.total || 0} leads</span>
+                    <strong>{member.converted || 0} closed</strong>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -326,7 +495,6 @@ export default function Dashboard() {
   );
 }
 
-/* TAB */
 function Tab({ icon, label, active, onClick }) {
   return (
     <div onClick={onClick} className={active ? "tab activeTab" : "tab"}>
@@ -336,37 +504,45 @@ function Tab({ icon, label, active, onClick }) {
   );
 }
 
-/* KPI */
-function KpiCard({ title, value, onClick }) {
-
+function KpiCard({ title, value, onClick, accent, icon }) {
   const [count, setCount] = React.useState(0);
 
   React.useEffect(() => {
     let start = 0;
     const end = value || 0;
-    const duration = 800;
-    const increment = end / (duration / 20);
+    const duration = 700;
+    const increment = end / Math.max(duration / 20, 1);
 
     const timer = setInterval(() => {
       start += increment;
-
       if (start >= end) {
         start = end;
         clearInterval(timer);
       }
-
       setCount(Math.floor(start));
-
     }, 20);
 
     return () => clearInterval(timer);
-
   }, [value]);
 
   return (
-    <div className="kpiCard" onClick={onClick} style={{ cursor: "pointer" }}>
-      <h4>{title}</h4>
+    <div className="kpiCard" onClick={onClick} style={{ cursor: "pointer", borderTop: `4px solid ${accent}` }}>
+      <div className="kpiHead">
+        <h4>{title}</h4>
+        <span className="kpiBadge" style={{ color: accent, background: `${accent}16` }}>
+          {icon}
+        </span>
+      </div>
       <div className="kpiCircle">{count}</div>
+    </div>
+  );
+}
+
+function MiniCard({ title, value }) {
+  return (
+    <div className="miniCard">
+      <span>{title}</span>
+      <strong>{value || 0}</strong>
     </div>
   );
 }

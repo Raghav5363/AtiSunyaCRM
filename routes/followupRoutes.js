@@ -1,5 +1,6 @@
 const express = require("express");
 const Activity = require("../models/activity");
+const User = require("../models/user");
 const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -7,10 +8,24 @@ const router = express.Router();
 /* =========================
    COMMON FILTER FUNCTION
 ========================= */
-const applyRoleFilter = (req, baseFilter) => {
-  if (req.user.role !== "admin") {
-    baseFilter.createdBy = req.user.id;
+const applyRoleFilter = async (req, baseFilter) => {
+  if (req.user.role === "admin") {
+    return baseFilter;
   }
+
+  if (req.user.role === "sales_agent") {
+    baseFilter.createdBy = req.user.id;
+    return baseFilter;
+  }
+
+  if (req.user.role === "sales_manager") {
+    const managerId = req.user.id;
+    const agents = await User.find({ role: "sales_agent" }).select("_id");
+    baseFilter.createdBy = {
+      $in: [managerId, ...agents.map((agent) => agent._id.toString())]
+    };
+  }
+
   return baseFilter;
 };
 
@@ -29,7 +44,7 @@ router.get("/today", protect, async (req, res) => {
       nextFollowUpDate: { $gte: start, $lte: end }
     };
 
-    filter = applyRoleFilter(req, filter);
+    filter = await applyRoleFilter(req, filter);
 
     const followups = await Activity.find(filter)
       .populate("leadId", "name phone createdAt") // ✅ FIX ADDED
@@ -57,7 +72,7 @@ router.get("/overdue", protect, async (req, res) => {
       nextFollowUpDate: { $lt: today }
     };
 
-    filter = applyRoleFilter(req, filter);
+    filter = await applyRoleFilter(req, filter);
 
     const followups = await Activity.find(filter)
       .populate("leadId", "name phone createdAt") // ✅ FIX ADDED
@@ -85,7 +100,7 @@ router.get("/upcoming", protect, async (req, res) => {
       nextFollowUpDate: { $gt: todayEnd }
     };
 
-    filter = applyRoleFilter(req, filter);
+    filter = await applyRoleFilter(req, filter);
 
     const followups = await Activity.find(filter)
       .populate("leadId", "name phone createdAt") // ✅ FIX ADDED

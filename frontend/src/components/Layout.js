@@ -5,6 +5,9 @@ import Topbar from "./Topbar";
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem("darkMode") === "true"
+  );
 
   /* ===== SCREEN DETECT ===== */
   useEffect(() => {
@@ -17,12 +20,22 @@ export default function Layout({ children }) {
     return () => window.removeEventListener("resize", checkScreen);
   }, []);
 
+  useEffect(() => {
+    const syncTheme = () => {
+      setDarkMode(localStorage.getItem("darkMode") === "true");
+    };
+
+    syncTheme();
+    window.addEventListener("storage", syncTheme);
+    return () => window.removeEventListener("storage", syncTheme);
+  }, []);
+
   return (
     <div
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: "#eef2f6",
+        background: darkMode ? "var(--bg)" : "#eef2f6",
       }}
     >
       {/* ===== SIDEBAR ===== */}
@@ -64,9 +77,10 @@ export default function Layout({ children }) {
         <div
           style={{
             flex: 1,
-            padding: isMobile ? "15px" : "25px 30px",
-            background: "#f7f9fc",
+            padding: isMobile ? "10px" : "20px 22px",
+            background: "var(--bg)",
             overflowY: "auto",
+            transition: "background 0.2s ease",
           }}
         >
           <div style={{ width: "100%" }}>

@@ -1,71 +1,78 @@
 const cron = require("node-cron");
 const Lead = require("../models/Lead");
 
-/* =========================
-   🔔 REMINDER CRON JOB (FINAL)
-   Runs every 1 minute
-========================= */
+let reminderTask = null;
 
 const startReminderCron = () => {
+  if (reminderTask) {
+    return reminderTask;
+  }
 
-  cron.schedule("* * * * *", async () => {
-    try {
-      const now = new Date();
+  reminderTask = cron.schedule(
+    "* * * * *",
+    async () => {
+      try {
+        const now = new Date();
 
-      /* =========================
-         GET DUE REMINDERS
-      ========================== */
+        const leads = await Lead.find({
+          reminderDate: { $ne: null, $lte: now },
+          reminderSent: false,
+          isDeleted: false,
+        })
+          .select("_id name purpose status reminderDate assignedTo notes")
+          .lean();
 
-      const leads = await Lead.find({
-        reminderDate: { $lte: now },
-        reminderSent: false,
-        isDeleted: false
-      })
-      .select("_id name purpose status reminderDate assignedTo")
-      .lean(); // ✅ performance boost
-
-      if (!leads.length) return;
-
-      console.log(`🔔 ${leads.length} reminders triggered`);
-
-      /* =========================
-         PROCESS EACH LEAD
-      ========================== */
-
-      for (const lead of leads) {
-
-        const notificationPayload = {
-          _id: lead._id.toString(), // ✅ IMPORTANT (frontend safe)
-          name: lead.name || "Lead",
-          purpose: lead.purpose || "followup",
-          status: lead.status || "new",
-          reminderDate: lead.reminderDate,
-        };
-
-        /* =========================
-           🔥 REAL-TIME SOCKET EMIT
-        ========================== */
-
-        if (global.io) {
-          global.io.emit("new_notification", notificationPayload);
+        if (!leads.length) {
+          console.log("[ReminderCron] No reminders due");
+          return;
         }
 
-        /* =========================
-           MARK AS SENT
-        ========================== */
+        console.log(`[ReminderCron] ${leads.length} reminder(s) triggered`);
 
-        await Lead.updateOne(
-          { _id: lead._id },
-          { $set: { reminderSent: true } }
-        );
+        const bulkOps = [];
 
+        for (const lead of leads) {
+          const payload = {
+            _id: lead._id.toString(),
+            name: lead.name || "Lead",
+            purpose: lead.purpose || "followup",
+            status: lead.status || "new",
+            notes: lead.notes || "",
+            reminderDate: lead.reminderDate,
+          };
+
+          if (global.io) {
+            if (lead.assignedTo) {
+              global.io.to(lead.assignedTo.toString()).emit("new_notification", payload);
+            } else {
+              global.io.emit("new_notification", payload);
+            }
+          }
+
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: lead._id },
+              update: { $set: { reminderSent: true, reminderRead: false } },
+            },
+          });
+        }
+
+        if (bulkOps.length) {
+          await Lead.bulkWrite(bulkOps);
+        }
+      } catch (error) {
+        console.error("[ReminderCron] Error:", error);
       }
-
-    } catch (error) {
-      console.error("❌ Reminder Cron Error:", error.message);
+    },
+    {
+      name: "lead-reminder-cron",
+      noOverlap: true,
+      timezone: process.env.CRON_TIMEZONE || "Asia/Kolkata",
     }
-  });
+  );
 
+  console.log("[ReminderCron] Started");
+  return reminderTask;
 };
 
 module.exports = startReminderCron;

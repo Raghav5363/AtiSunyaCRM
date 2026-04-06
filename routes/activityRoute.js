@@ -1,9 +1,32 @@
 const express = require("express");
 const Activity = require("../models/activity");
 const Lead = require("../models/Lead");
+const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
 
 const router = express.Router();
+
+const applyActivityRoleFilter = async (req, filter = {}) => {
+  const scopedFilter = { ...filter };
+
+  if (req.user.role === "admin") {
+    return scopedFilter;
+  }
+
+  if (req.user.role === "sales_agent") {
+    scopedFilter.createdBy = req.user.id;
+    return scopedFilter;
+  }
+
+  if (req.user.role === "sales_manager") {
+    const agents = await User.find({ role: "sales_agent" }).select("_id");
+    scopedFilter.createdBy = {
+      $in: [req.user.id, ...agents.map((agent) => agent._id.toString())],
+    };
+  }
+
+  return scopedFilter;
+};
 
 /* =========================
    TODAY FOLLOW-UPS
@@ -17,9 +40,10 @@ router.get("/today", protect, async (req, res) => {
     const end = new Date();
     end.setHours(23,59,59,999);
 
-    const activities = await Activity.find({
+    const filter = await applyActivityRoleFilter(req, {
       nextFollowUpDate: { $gte: start, $lte: end }
     })
+    const activities = await Activity.find(filter)
     .populate({
       path: "leadId",
       select: "name phone assignedTo"
@@ -47,9 +71,10 @@ router.get("/overdue", protect, async (req, res) => {
     const today = new Date();
     today.setHours(0,0,0,0);
 
-    const activities = await Activity.find({
+    const filter = await applyActivityRoleFilter(req, {
       nextFollowUpDate: { $lt: today }
     })
+    const activities = await Activity.find(filter)
     .populate("leadId","name phone")
     .sort({ nextFollowUpDate: 1 });
 
@@ -115,9 +140,26 @@ router.post(
       });
 
       if(nextFollowUpDate){
-        lead.nextFollowUpDate = new Date(nextFollowUpDate);
-        await lead.save();
+        const followUpDate = new Date(nextFollowUpDate);
+        lead.nextFollowUpDate = followUpDate;
+        lead.reminderDate = followUpDate;
+        lead.reminderSent = false;
+        lead.reminderRead = false;
       }
+
+      if(notes){
+        lead.notes = notes;
+      }
+
+      if(activityDateTime){
+        lead.lastContactedAt = new Date(activityDateTime);
+      }
+
+      if(activityType){
+        lead.purpose = activityType === "whatsapp" ? "followup" : activityType;
+      }
+
+      await lead.save();
 
       res.status(201).json(activity);
 

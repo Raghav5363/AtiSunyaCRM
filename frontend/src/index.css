@@ -47,6 +47,7 @@ background:var(--bg);
 
 -webkit-font-smoothing:antialiased;
 -moz-osx-font-smoothing:grayscale;
+-webkit-text-size-adjust:100%;
 
 }
 
@@ -56,6 +57,22 @@ box-sizing:border-box;
 
 #root{
 min-height:100vh;
+}
+
+img{
+max-width:100%;
+display:block;
+}
+
+button,
+input,
+select,
+textarea{
+font:inherit;
+}
+
+button{
+-webkit-tap-highlight-color:transparent;
 }
 
 
@@ -262,6 +279,10 @@ padding:16px !important;
 
 @media (max-width:600px){
 
+html, body{
+font-size:14px;
+}
+
 .card{
 
 padding:16px;
@@ -272,6 +293,12 @@ padding:16px;
 
 width:100%;
 
+}
+
+input,
+select,
+textarea{
+font-size:16px;
 }
 
 }

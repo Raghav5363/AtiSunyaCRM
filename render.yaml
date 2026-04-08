@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: atisunya-crm
+    env: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PORT
+        value: 10000
+      - key: REACT_APP_API_URL
+        value: https://atisunyacrm.onrender.com

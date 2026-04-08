@@ -11,7 +11,7 @@
   background: linear-gradient(135deg, #0f172a, #1d4ed8 72%, #38bdf8 100%);
   color: #fff;
   border-radius: 18px;
-  padding: 18px;
+  padding: 14px 16px;
   display: flex;
   justify-content: space-between;
   gap: 14px;
@@ -30,7 +30,7 @@
 
 .dashboardHero h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .heroSub {
@@ -38,7 +38,7 @@
   color: rgba(255, 255, 255, 0.82);
   max-width: 520px;
   line-height: 1.45;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .heroStats {
@@ -54,14 +54,14 @@
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: 7px 11px;
+  font-size: 11px;
 }
 
 .tabs {
   display: grid;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .tabsAuto {
@@ -74,7 +74,7 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 9px 8px;
+  padding: 8px 7px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 16px;
@@ -84,7 +84,7 @@
   color: #334155;
   transition: all 0.2s ease;
   backdrop-filter: blur(8px);
-  min-height: 70px;
+  min-height: 64px;
   text-align: center;
   line-height: 1.25;
 }
@@ -102,12 +102,12 @@
 
 .kpiWrapper {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 .kpiWrapperWide {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .kpiCard,
@@ -120,10 +120,10 @@
 }
 
 .kpiCard {
-  padding: 12px;
+  padding: 11px;
   border-radius: 18px;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
-  min-height: 136px;
+  min-height: 118px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -161,22 +161,22 @@
 }
 
 .kpiCircle {
-  width: 66px;
-  height: 66px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   border: 3px solid #d1d5db;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 14px auto 0;
-  font-size: 17px;
+  margin: 12px auto 0;
+  font-size: 15px;
   font-weight: 700;
   color: #374151;
   background: #f8fafc;
 }
 
 .contentCard {
-  padding: 14px;
+  padding: 13px;
   border-radius: 18px;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -196,11 +196,11 @@
 .sectionHeader p {
   margin: 6px 0 0;
   color: #64748b;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .scheduleCard {
-  padding: 14px;
+  padding: 12px;
   border-radius: 14px;
   margin-bottom: 12px;
   background: #fff;
@@ -226,6 +226,7 @@
 .leaderName {
   font-weight: 700;
   color: #0f172a;
+  font-size: 13px;
 }
 
 .schedulePhone,
@@ -234,7 +235,7 @@
 .metaLabel,
 .emptyText {
   color: #64748b;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .scheduleType {
@@ -243,11 +244,37 @@
   gap: 6px;
   color: #2563eb;
   text-transform: capitalize;
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.scheduleTags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.scheduleTag {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.statusTag {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.purposeTag {
+  background: #f8fafc;
+  color: #475569;
 }
 
 .scheduleMeta {
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 .scheduleMeta div {
@@ -257,18 +284,29 @@
 }
 
 .scheduleFooter {
-  margin-top: 14px;
+  margin-top: 12px;
+}
+
+.scheduleNotes {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.55;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 10px;
+  border-radius: 12px;
 }
 
 .chartSection,
 .dashboardGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 14px;
 }
 
 .chartCard {
-  padding: 14px;
+  padding: 13px;
   border-radius: 18px;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
   min-height: 292px;
@@ -293,24 +331,24 @@
 .miniGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
 
 .miniCard {
-  padding: 16px;
+  padding: 13px;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .miniCard span {
   color: #64748b;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .miniCard strong {
-  font-size: 28px;
+  font-size: 22px;
   color: #0f172a;
 }
 
@@ -328,7 +366,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .leaderStats strong {
@@ -339,6 +377,11 @@
   .chartSection,
   .dashboardGrid {
     grid-template-columns: 1fr;
+  }
+
+  .kpiWrapper,
+  .kpiWrapperWide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

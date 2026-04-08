@@ -3,7 +3,16 @@ import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
 import { toast } from "react-toastify";
-import { FiBell, FiClock, FiLogOut, FiMenu, FiMoon, FiSun } from "react-icons/fi";
+import {
+  FiAlertCircle,
+  FiArrowRight,
+  FiBell,
+  FiCalendar,
+  FiLogOut,
+  FiMenu,
+  FiMoon,
+  FiSun,
+} from "react-icons/fi";
 
 function decodeJwtPayload(token) {
   if (!token) return null;
@@ -27,6 +36,7 @@ function formatReminderDate(value) {
   if (Number.isNaN(date.getTime())) return "No reminder date";
 
   return date.toLocaleString("en-IN", {
+    weekday: "short",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -35,28 +45,39 @@ function formatReminderDate(value) {
   });
 }
 
-function getReminderTag(value) {
-  if (!value) {
+function getReminderTag(item) {
+  const reminderState = item?.reminderState;
+
+  if (reminderState === "overdue") {
+    return { label: "Overdue", color: "#b91c1c", background: "#fee2e2" };
+  }
+
+  if (reminderState === "today") {
+    return { label: "Today", color: "#b45309", background: "#fef3c7" };
+  }
+
+  if (reminderState === "upcoming") {
+    return { label: "Upcoming", color: "#1d4ed8", background: "#dbeafe" };
+  }
+
+  if (!item?.reminderDate) {
     return { label: "Unscheduled", color: "#64748b", background: "#f1f5f9" };
   }
 
-  const reminder = new Date(value);
+  const reminder = new Date(item.reminderDate);
   if (Number.isNaN(reminder.getTime())) {
     return { label: "Unscheduled", color: "#64748b", background: "#f1f5f9" };
   }
 
   const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
 
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-
-  if (reminder < todayStart) {
+  if (reminder < now) {
     return { label: "Overdue", color: "#b91c1c", background: "#fee2e2" };
   }
 
-  if (reminder >= todayStart && reminder < tomorrowStart) {
+  if (reminder <= endOfToday) {
     return { label: "Today", color: "#b45309", background: "#fef3c7" };
   }
 
@@ -68,6 +89,22 @@ function getRoleLabel(role) {
   return role.replace(/_/g, " ");
 }
 
+function createEmptyNotifications() {
+  return {
+    count: 0,
+    unreadCount: 0,
+    scheduledCount: 0,
+    summary: {
+      overdue: 0,
+      dueToday: 0,
+      upcoming: 0,
+      totalScheduled: 0,
+      unread: 0,
+    },
+    data: [],
+  };
+}
+
 export default function Topbar({ openSidebar }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -76,7 +113,7 @@ export default function Topbar({ openSidebar }) {
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true");
-  const [notifications, setNotifications] = useState({ count: 0, data: [] });
+  const [notifications, setNotifications] = useState(createEmptyNotifications);
   const [showNotif, setShowNotif] = useState(false);
 
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
@@ -85,8 +122,10 @@ export default function Topbar({ openSidebar }) {
 
   const fetchNotifications = useCallback(
     async ({ resetOnUnauthorized = true } = {}) => {
+      const emptyState = createEmptyNotifications();
+
       if (!token) {
-        setNotifications({ count: 0, data: [] });
+        setNotifications(emptyState);
         return;
       }
 
@@ -95,8 +134,16 @@ export default function Topbar({ openSidebar }) {
           headers: { Authorization: `Bearer ${token}` },
         });
 
+        const summary = {
+          ...emptyState.summary,
+          ...(res.data?.summary || {}),
+        };
+
         setNotifications({
-          count: res.data?.count || 0,
+          count: res.data?.count ?? summary.unread ?? 0,
+          unreadCount: res.data?.unreadCount ?? res.data?.count ?? summary.unread ?? 0,
+          scheduledCount: res.data?.scheduledCount ?? summary.totalScheduled ?? 0,
+          summary,
           data: Array.isArray(res.data?.data) ? res.data.data : [],
         });
       } catch (err) {
@@ -104,7 +151,7 @@ export default function Topbar({ openSidebar }) {
         console.log("Notification fetch error:", err?.response?.data || err.message);
 
         if (status === 401 && resetOnUnauthorized) {
-          setNotifications({ count: 0, data: [] });
+          setNotifications(emptyState);
         }
       }
     },
@@ -163,21 +210,7 @@ export default function Topbar({ openSidebar }) {
     });
 
     socket.on("new_notification", (data) => {
-      setNotifications((prev) => {
-        const nextItems = Array.isArray(prev.data) ? prev.data : [];
-        const alreadyExists = nextItems.some((item) => item._id === data?._id);
-
-        if (alreadyExists) {
-          return prev;
-        }
-
-        return {
-          count: (prev.count || 0) + 1,
-          data: [data, ...nextItems],
-        };
-      });
-
-      toast.info(`Reminder: ${data?.name || "Lead"}`, {
+      toast.info(`${data?.name || "Lead"} reminder needs attention`, {
         autoClose: 3000,
       });
 
@@ -186,6 +219,8 @@ export default function Topbar({ openSidebar }) {
         audio.volume = 0.7;
         audio.play().catch(() => {});
       } catch {}
+
+      fetchNotifications({ resetOnUnauthorized: false });
     });
 
     socket.on("connect_error", (error) => {
@@ -206,7 +241,12 @@ export default function Topbar({ openSidebar }) {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
   const toggleNotifications = async () => {
@@ -220,10 +260,27 @@ export default function Topbar({ openSidebar }) {
   const markAsRead = async (id) => {
     if (!token || !id) return;
 
-    setNotifications((prev) => ({
-      count: Math.max((prev.count || 0) - 1, 0),
-      data: prev.data.filter((item) => item._id !== id),
-    }));
+    setNotifications((prev) => {
+      const nextSummary = {
+        ...(prev.summary || createEmptyNotifications().summary),
+      };
+
+      if (nextSummary.unread > 0) {
+        nextSummary.unread -= 1;
+      }
+
+      return {
+        ...prev,
+        count: Math.max((prev.count || 0) - 1, 0),
+        unreadCount: Math.max((prev.unreadCount || 0) - 1, 0),
+        summary: nextSummary,
+        data: Array.isArray(prev.data)
+          ? prev.data.map((item) =>
+              item._id === id ? { ...item, isAlertActive: false, reminderRead: true } : item
+            )
+          : [],
+      };
+    });
 
     try {
       await axios.put(
@@ -239,10 +296,13 @@ export default function Topbar({ openSidebar }) {
     }
   };
 
-  const handleNotificationClick = async (item) => {
+  const handleNotificationClick = (item) => {
     if (!item?._id) return;
 
-    await markAsRead(item._id);
+    if (item.isAlertActive) {
+      markAsRead(item._id);
+    }
+
     setShowNotif(false);
     navigate(`/lead/${item._id}`);
   };
@@ -272,9 +332,41 @@ export default function Topbar({ openSidebar }) {
     navigate("/login", { replace: true });
   };
 
+  const summary = notifications.summary || createEmptyNotifications().summary;
+  const unreadBadgeCount = notifications.unreadCount ?? notifications.count ?? 0;
+  const scheduledCount =
+    notifications.scheduledCount ?? summary.totalScheduled ?? notifications.data.length;
+  const summaryCards = [
+    {
+      key: "overdue",
+      label: "Overdue",
+      value: summary.overdue || 0,
+      color: "#b91c1c",
+      background: "#fee2e2",
+    },
+    {
+      key: "today",
+      label: "Today",
+      value: summary.dueToday || 0,
+      color: "#b45309",
+      background: "#fef3c7",
+    },
+    {
+      key: "upcoming",
+      label: "Upcoming",
+      value: summary.upcoming || 0,
+      color: "#1d4ed8",
+      background: "#dbeafe",
+    },
+  ];
+
   const barStyle = {
     ...styles.bar,
     background: darkMode ? "rgba(15,23,42,0.78)" : "rgba(255,255,255,0.72)",
+  };
+  const titleStyle = {
+    ...styles.title,
+    fontSize: isMobile ? 16 : 18,
   };
 
   return (
@@ -286,7 +378,7 @@ export default function Topbar({ openSidebar }) {
           </button>
         )}
         <div>
-          <h3 style={styles.title}>{getPageTitle()}</h3>
+          <h3 style={titleStyle}>{getPageTitle()}</h3>
           {!isMobile && <p style={styles.subtitle}>Fast, clean CRM workspace</p>}
         </div>
       </div>
@@ -301,62 +393,125 @@ export default function Topbar({ openSidebar }) {
             <FiBell />
           </button>
 
-          {notifications.count > 0 && <span style={styles.badge}>{notifications.count}</span>}
+          {unreadBadgeCount > 0 && <span style={styles.badge}>{unreadBadgeCount}</span>}
 
           {showNotif && (
             <div style={isMobile ? styles.mobileDropdown : styles.dropdown}>
               <div style={styles.dropdownHeader}>
                 <div>
-                  <h4 style={styles.dropdownTitle}>Reminder Notifications</h4>
-                  <p style={styles.dropdownSub}>Due and overdue unread reminders appear here.</p>
+                  <h4 style={styles.dropdownTitle}>Reminder Center</h4>
+                  <p style={styles.dropdownSub}>
+                    Track overdue, today, and upcoming follow-ups in one place.
+                  </p>
                 </div>
-                <div style={styles.dropdownCount}>{notifications.count || 0}</div>
+                <div style={styles.dropdownCount}>{scheduledCount || 0}</div>
+              </div>
+
+              <div style={styles.summaryRow}>
+                {summaryCards.map((card) => (
+                  <div
+                    key={card.key}
+                    style={{
+                      ...styles.summaryCard,
+                      background: card.background,
+                    }}
+                  >
+                    <span style={{ ...styles.summaryValue, color: card.color }}>{card.value}</span>
+                    <span style={{ ...styles.summaryLabel, color: card.color }}>{card.label}</span>
+                  </div>
+                ))}
               </div>
 
               {notifications.data.length === 0 ? (
                 <div style={styles.emptyState}>
-                  <FiClock />
-                  <span>No unread reminder notifications right now.</span>
+                  <FiCalendar />
+                  <span>No scheduled reminders right now.</span>
                 </div>
               ) : (
-                notifications.data.map((item) => {
-                  const tag = getReminderTag(item.reminderDate);
+                <>
+                  {notifications.data.map((item) => {
+                    const tag = getReminderTag(item);
+                    const showLiveAlert = Boolean(item.isAlertActive);
 
-                  return (
+                    return (
+                      <button
+                        key={item._id}
+                        onClick={() => handleNotificationClick(item)}
+                        style={{
+                          ...styles.notificationItem,
+                          ...(showLiveAlert ? styles.notificationItemAlert : null),
+                        }}
+                        type="button"
+                        aria-label={`Open ${item.name || "lead"} reminder`}
+                      >
+                        <div style={styles.notificationTop}>
+                          <div>
+                            <div style={styles.notificationTitle}>{item.name || "Lead"}</div>
+                            {showLiveAlert && (
+                              <div style={styles.alertRow}>
+                                <FiAlertCircle />
+                                <span>Unread alert</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={styles.notificationBadges}>
+                            <span
+                              style={{
+                                ...styles.notificationTag,
+                                color: tag.color,
+                                background: tag.background,
+                              }}
+                            >
+                              {tag.label}
+                            </span>
+                            <span
+                              style={{
+                                ...styles.notificationTag,
+                                color: "#0f766e",
+                                background: "#ccfbf1",
+                              }}
+                            >
+                              Click to open
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={styles.notificationMetaRow}>
+                          <span style={styles.notificationMeta}>
+                            {(item.purpose || "followup").replace(/_/g, " ")}
+                          </span>
+                          <span style={styles.notificationTime}>
+                            {formatReminderDate(item.reminderDate)}
+                          </span>
+                        </div>
+
+                        <div style={styles.notificationFooter}>
+                          <div style={styles.notificationNotes}>
+                            {item.notes || "No notes added"}
+                          </div>
+                          <div style={styles.notificationLink}>
+                            <span>Open lead</span>
+                            <FiArrowRight />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  <div style={styles.dropdownFooter}>
                     <button
-                      key={item._id}
-                      onClick={() => handleNotificationClick(item)}
-                      style={styles.notificationItem}
                       type="button"
+                      onClick={() => {
+                        setShowNotif(false);
+                        navigate("/followups");
+                      }}
+                      style={styles.footerButton}
                     >
-                      <div style={styles.notificationTop}>
-                        <div style={styles.notificationTitle}>{item.name || "Lead"}</div>
-                        <span
-                          style={{
-                            ...styles.notificationTag,
-                            color: tag.color,
-                            background: tag.background,
-                          }}
-                        >
-                          {tag.label}
-                        </span>
-                      </div>
-
-                      <div style={styles.notificationMetaRow}>
-                        <span style={styles.notificationMeta}>
-                          {(item.purpose || "followup").replace(/_/g, " ")}
-                        </span>
-                        <span style={styles.notificationTime}>
-                          {formatReminderDate(item.reminderDate)}
-                        </span>
-                      </div>
-
-                      <div style={styles.notificationNotes}>
-                        {item.notes || "No notes added"}
-                      </div>
+                      Open follow-up board
                     </button>
-                  );
-                })
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -382,12 +537,12 @@ export default function Topbar({ openSidebar }) {
 
 const styles = {
   bar: {
-    minHeight: 62,
+    minHeight: 60,
     background: "rgba(255,255,255,0.72)",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "10px 14px",
+    padding: "8px 12px",
     borderBottom: "1px solid var(--border)",
     position: "sticky",
     top: 0,
@@ -416,23 +571,23 @@ const styles = {
   },
   subtitle: {
     margin: "4px 0 0",
-    fontSize: 12,
+    fontSize: 11,
     color: "var(--text)",
   },
   role: {
-    fontSize: 12,
+    fontSize: 11,
     color: "var(--text)",
     textTransform: "capitalize",
-    padding: "9px 12px",
+    padding: "8px 11px",
     borderRadius: 999,
     background: "rgba(148,163,184,0.08)",
     border: "1px solid var(--border)",
     whiteSpace: "nowrap",
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 13,
     border: "1px solid var(--border)",
     background: "var(--card)",
     color: "var(--heading)",
@@ -440,7 +595,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-    fontSize: 18,
+    fontSize: 17,
     boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
     transition: "transform 0.18s ease, box-shadow 0.18s ease",
   },
@@ -473,21 +628,21 @@ const styles = {
   },
   dropdown: {
     position: "absolute",
-    top: 48,
+    top: 46,
     right: 0,
-    width: 370,
+    width: 380,
     background: "var(--card)",
     boxShadow: "0 22px 46px rgba(15, 23, 42, 0.18)",
     borderRadius: 18,
     border: "1px solid var(--border)",
     overflow: "hidden",
     zIndex: 1000,
-    maxHeight: 430,
+    maxHeight: 460,
     overflowY: "auto",
   },
   mobileDropdown: {
     position: "fixed",
-    top: 72,
+    top: 68,
     left: "50%",
     transform: "translateX(-50%)",
     width: "92%",
@@ -501,7 +656,7 @@ const styles = {
     overflowY: "auto",
   },
   dropdownHeader: {
-    padding: "16px",
+    padding: "14px",
     borderBottom: "1px solid var(--border)",
     background: "var(--card)",
     display: "flex",
@@ -511,18 +666,18 @@ const styles = {
   },
   dropdownTitle: {
     margin: 0,
-    fontSize: 15,
+    fontSize: 14,
     color: "var(--heading)",
   },
   dropdownSub: {
     margin: "6px 0 0",
-    fontSize: 12,
+    fontSize: 11,
     color: "var(--text)",
     lineHeight: 1.45,
   },
   dropdownCount: {
-    minWidth: 34,
-    height: 34,
+    minWidth: 36,
+    height: 36,
     borderRadius: 12,
     background: "#eff6ff",
     color: "#1d4ed8",
@@ -530,12 +685,36 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     fontWeight: 800,
-    fontSize: 13,
+    fontSize: 12,
+  },
+  summaryRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 8,
+    padding: "12px 14px 14px",
+    borderBottom: "1px solid var(--border)",
+    background: "linear-gradient(180deg, rgba(248,250,252,0.92), rgba(255,255,255,0.96))",
+  },
+  summaryCard: {
+    borderRadius: 14,
+    padding: "10px 12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: 800,
+    lineHeight: 1,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: 700,
   },
   emptyState: {
-    padding: 22,
+    padding: 18,
     margin: 0,
-    fontSize: 13,
+    fontSize: 12,
     color: "var(--text)",
     display: "flex",
     flexDirection: "column",
@@ -553,21 +732,42 @@ const styles = {
     textAlign: "left",
     background: "transparent",
   },
+  notificationItemAlert: {
+    background: "linear-gradient(180deg, rgba(254,242,242,0.92), rgba(255,255,255,0.98))",
+  },
   notificationTop: {
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 10,
   },
+  notificationBadges: {
+    display: "flex",
+    gap: 6,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
   notificationTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 800,
     color: "var(--heading)",
   },
+  alertRow: {
+    marginTop: 6,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 10,
+    fontWeight: 700,
+    color: "#b91c1c",
+    background: "#fee2e2",
+    padding: "4px 7px",
+    borderRadius: 999,
+  },
   notificationTag: {
     borderRadius: 999,
-    padding: "5px 9px",
-    fontSize: 11,
+    padding: "4px 8px",
+    fontSize: 10,
     fontWeight: 700,
     whiteSpace: "nowrap",
   },
@@ -576,22 +776,53 @@ const styles = {
     justifyContent: "space-between",
     gap: 12,
     flexWrap: "wrap",
-    marginTop: 8,
+    marginTop: 10,
   },
   notificationMeta: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#2563eb",
     textTransform: "capitalize",
     fontWeight: 700,
   },
   notificationTime: {
-    fontSize: 12,
+    fontSize: 11,
     color: "var(--text)",
   },
+  notificationFooter: {
+    marginTop: 10,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    gap: 12,
+  },
   notificationNotes: {
-    fontSize: 12,
+    fontSize: 11,
     color: "var(--text)",
-    marginTop: 9,
     lineHeight: 1.5,
+    flex: 1,
+  },
+  notificationLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 11,
+    fontWeight: 800,
+    color: "#0f766e",
+    whiteSpace: "nowrap",
+  },
+  dropdownFooter: {
+    padding: 12,
+    background: "rgba(248,250,252,0.92)",
+  },
+  footerButton: {
+    width: "100%",
+    border: "1px solid #cbd5e1",
+    background: "#fff",
+    color: "#0f172a",
+    borderRadius: 12,
+    padding: "10px 12px",
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: "pointer",
   },
 };

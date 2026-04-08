@@ -54,6 +54,20 @@ const formatDateTime = (date) => {
   });
 };
 
+const formatMetaDateTime = (date) => {
+  if (!date) return "--";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "--";
+
+  return parsed.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const getActivityIcon = (type) => {
   switch (type) {
     case "call":
@@ -410,18 +424,33 @@ export default function Dashboard() {
                     <span>{item.activityType || "activity"}</span>
                   </div>
                 </div>
+
+                <div className="scheduleTags">
+                  <span className="scheduleTag statusTag">
+                    {(item.leadId?.status || "new").replace(/_/g, " ")}
+                  </span>
+                  <span className="scheduleTag purposeTag">
+                    {(item.leadId?.purpose || "followup").replace(/_/g, " ")}
+                  </span>
+                </div>
+
                 <div className="scheduleMeta">
                   <div>
                     <span className="metaLabel">Created</span>
-                    <span>{formatDateTime(item.leadId?.createdAt)}</span>
+                    <span>{formatMetaDateTime(item.leadId?.createdAt)}</span>
                   </div>
                   <div>
                     <span className="metaLabel">Reminder</span>
-                    <span>{formatDateTime(item.nextFollowUpDate)}</span>
+                    <span>{formatMetaDateTime(item.leadId?.reminderDate || item.nextFollowUpDate)}</span>
                   </div>
                 </div>
+
+                <div className="scheduleNotes">
+                  {item.notes || item.leadId?.notes || "No notes added"}
+                </div>
+
                 <div className="scheduleFooter">
-                  {formatDateTime(item.activityDateTime || item.nextFollowUpDate)}
+                  Scheduled: {formatDateTime(item.activityDateTime || item.nextFollowUpDate)}
                 </div>
               </div>
             ))

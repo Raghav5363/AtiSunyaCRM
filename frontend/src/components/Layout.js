@@ -35,7 +35,10 @@ export default function Layout({ children }) {
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: darkMode ? "var(--bg)" : "#eef2f6",
+        background: darkMode
+          ? "radial-gradient(circle at top left, rgba(59,130,246,0.12), transparent 20%), var(--bg)"
+          : "radial-gradient(circle at top left, rgba(59,130,246,0.08), transparent 18%), #eef2f6",
+        overflow: "hidden",
       }}
     >
       {/* ===== SIDEBAR ===== */}
@@ -83,7 +86,7 @@ export default function Layout({ children }) {
             transition: "background 0.2s ease",
           }}
         >
-          <div style={{ width: "100%" }}>
+          <div style={{ width: "100%", maxWidth: "100%" }}>
             {children}
           </div>
         </div>

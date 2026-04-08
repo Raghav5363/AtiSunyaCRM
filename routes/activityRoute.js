@@ -46,7 +46,7 @@ router.get("/today", protect, async (req, res) => {
     const activities = await Activity.find(filter)
     .populate({
       path: "leadId",
-      select: "name phone assignedTo"
+      select: "name phone assignedTo createdAt reminderDate notes status purpose"
     })
     .sort({ nextFollowUpDate: 1 });
 

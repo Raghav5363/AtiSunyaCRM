@@ -12,6 +12,7 @@ export default function AdminDashboard() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const authHeaders = useMemo(
     () => ({
@@ -19,6 +20,12 @@ export default function AdminDashboard() {
     }),
     [token]
   );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     const res = await axios.get(`${BASE_URL}/api/users`, authHeaders);
@@ -110,11 +117,11 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.hero}>
+    <div style={{ ...styles.page, padding: isMobile ? "10px" : "14px" }}>
+      <div style={{ ...styles.hero, padding: isMobile ? 14 : 18 }}>
         <div>
           <p style={styles.eyebrow}>Admin Dashboard</p>
-          <h1 style={styles.title}>System overview</h1>
+          <h1 style={{ ...styles.title, fontSize: isMobile ? 20 : 24 }}>System overview</h1>
           <p style={styles.subtitle}>
             Manage users and monitor team pipeline performance from one place.
           </p>
@@ -123,14 +130,19 @@ export default function AdminDashboard() {
 
       {error && <div style={styles.error}>{error}</div>}
 
-      <div style={styles.grid}>
+      <div
+        style={{
+          ...styles.grid,
+          gap: isMobile ? 10 : 12,
+        }}
+      >
         <SummaryCard title="Total Users" value={summary.users} icon={<FiUsers />} />
         <SummaryCard title="Admins" value={summary.admins} icon={<FiShield />} />
         <SummaryCard title="Managers" value={summary.managers} icon={<FiUserCheck />} />
         <SummaryCard title="Agents" value={summary.agents} icon={<FiTrendingUp />} />
       </div>
 
-      <div style={styles.panel}>
+      <div style={{ ...styles.panel, padding: isMobile ? 14 : 16 }}>
         <h3 style={styles.panelTitle}>Team Performance</h3>
         {team.length === 0 ? (
           <div style={styles.emptyPanel}>No team data available.</div>
@@ -192,7 +204,7 @@ const styles = {
   subtitle: {
     margin: 0,
     color: "var(--text)",
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 1.5,
   },
   error: {
@@ -214,28 +226,28 @@ const styles = {
     background: "var(--card)",
     border: "1px solid var(--border)",
     borderRadius: 18,
-    padding: 16,
+    padding: 13,
     boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
   },
   cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     background: "#eff6ff",
     color: "#2563eb",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   cardValue: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 800,
     color: "var(--heading)",
   },
   cardTitle: {
     marginTop: 4,
-    fontSize: 12,
+    fontSize: 11,
     color: "var(--text)",
     fontWeight: 600,
   },
@@ -262,18 +274,18 @@ const styles = {
   name: {
     fontWeight: 700,
     color: "var(--heading)",
-    fontSize: 14,
+    fontSize: 13,
   },
   meta: {
     color: "var(--text)",
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 4,
   },
   stats: {
     display: "flex",
     gap: 10,
     alignItems: "center",
-    fontSize: 12,
+    fontSize: 11,
     color: "var(--text)",
   },
   empty: {

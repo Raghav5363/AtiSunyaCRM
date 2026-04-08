@@ -14,7 +14,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 
-const SIDEBAR_WIDTH = 260;
+const SIDEBAR_WIDTH = 268;
 const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 function decodeJwtPayload(token) {
@@ -112,11 +112,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const sidebarStyle = {
     width: SIDEBAR_WIDTH,
     background: darkMode
-      ? "linear-gradient(180deg, #0f172a 0%, #111827 100%)"
-      : "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+      ? "linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.98) 100%)"
+      : "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,251,255,0.98) 100%)",
     borderRight: "1px solid var(--border)",
     height: "100vh",
-    padding: 20,
+    padding: isMobile ? 16 : 18,
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
@@ -126,6 +126,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     transition: "0.28s ease",
     zIndex: 1000,
     boxShadow: isMobile ? "0 24px 60px rgba(15, 23, 42, 0.2)" : "none",
+    backdropFilter: "blur(18px)",
   };
 
   return (
@@ -239,14 +240,14 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "8px 6px 18px",
-    marginBottom: 14,
-    minHeight: 112,
-    background: "radial-gradient(circle at center, rgba(59,130,246,0.12), transparent 68%)",
+    padding: "6px 4px 14px",
+    marginBottom: 12,
+    minHeight: 100,
+    background: "radial-gradient(circle at center, rgba(59,130,246,0.14), transparent 68%)",
   },
   logo: {
-    width: 174,
-    height: 102,
+    width: 168,
+    height: 94,
     objectFit: "contain",
     background: "transparent",
     filter: "drop-shadow(0 10px 18px rgba(15,23,42,0.14))",
@@ -255,24 +256,25 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 12,
-    padding: "13px 14px",
+    padding: "12px 13px",
     borderRadius: 14,
     marginBottom: 8,
     textDecoration: "none",
     fontWeight: 600,
     transition: "0.2s ease",
+    fontSize: 13,
   },
   linkIcon: {
-    width: 20,
+    width: 18,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 18,
+    fontSize: 17,
   },
   uploadButton: {
     width: "100%",
     marginTop: 14,
-    padding: "13px 14px",
+    padding: "12px 13px",
     borderRadius: 14,
     border: "1px dashed #93c5fd",
     background: "#eff6ff",
@@ -283,11 +285,12 @@ const styles = {
     gap: 10,
     cursor: "pointer",
     fontWeight: 600,
+    fontSize: 13,
   },
   adminButton: {
     width: "100%",
     marginTop: 12,
-    padding: "13px 14px",
+    padding: "12px 13px",
     borderRadius: 14,
     border: "1px solid var(--border)",
     background: "var(--card)",
@@ -297,21 +300,22 @@ const styles = {
     justifyContent: "space-between",
     cursor: "pointer",
     fontWeight: 700,
+    fontSize: 13,
   },
   footer: {
     borderTop: "1px solid var(--border)",
-    paddingTop: 16,
+    paddingTop: 14,
   },
   userCard: {
     display: "flex",
     alignItems: "center",
     gap: 12,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     background: "linear-gradient(135deg, #1d4ed8, #38bdf8)",
     color: "#fff",
     display: "flex",
@@ -320,13 +324,13 @@ const styles = {
     fontWeight: 700,
   },
   userRole: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 700,
     color: "var(--heading)",
     textTransform: "capitalize",
   },
   userHint: {
-    fontSize: 12,
+    fontSize: 11,
     color: "var(--text)",
     marginTop: 2,
   },
@@ -336,12 +340,13 @@ const styles = {
     borderRadius: 14,
     background: "#fff1f2",
     color: "#e11d48",
-    padding: "12px 14px",
+    padding: "11px 13px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
     cursor: "pointer",
     fontWeight: 700,
+    fontSize: 13,
   },
 };

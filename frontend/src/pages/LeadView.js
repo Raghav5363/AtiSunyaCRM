@@ -80,17 +80,14 @@ function getReminderTone(value) {
   }
 
   const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
 
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-
-  if (date < todayStart) {
+  if (date < now) {
     return { label: "Overdue", color: "#b91c1c", background: "#fee2e2" };
   }
 
-  if (date >= todayStart && date < tomorrowStart) {
+  if (date <= endOfToday) {
     return { label: "Today", color: "#b45309", background: "#fef3c7" };
   }
 

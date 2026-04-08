@@ -210,6 +210,44 @@ function parseDateOrNull(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function getReminderState(reminderDateValue, now = new Date()) {
+  const reminderDate =
+    reminderDateValue instanceof Date ? reminderDateValue : new Date(reminderDateValue);
+
+  if (Number.isNaN(reminderDate.getTime())) {
+    return {
+      key: "unscheduled",
+      label: "Unscheduled",
+      priority: 99,
+    };
+  }
+
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+
+  if (reminderDate < now) {
+    return {
+      key: "overdue",
+      label: "Overdue",
+      priority: 0,
+    };
+  }
+
+  if (reminderDate <= endOfToday) {
+    return {
+      key: "today",
+      label: "Today",
+      priority: 1,
+    };
+  }
+
+  return {
+    key: "upcoming",
+    label: "Upcoming",
+    priority: 2,
+  };
+}
+
 async function applyLeadScope(req, filter = {}) {
   const scopedFilter = { ...filter };
 
@@ -298,19 +336,73 @@ const upload = multer({
 router.get("/notifications", protect, async (req, res) => {
   try {
     const filter = await applyLeadScope(req, {
-      reminderSent: true,
-      reminderRead: false,
+      reminderDate: { $ne: null },
       isDeleted: false,
     });
 
+    const now = new Date();
+
     const notifications = await Lead.find(filter)
-      .select("name reminderDate purpose status notes assignedTo")
-      .sort({ reminderDate: -1 })
+      .select("name reminderDate purpose status notes assignedTo reminderSent reminderRead")
       .lean();
 
+    const summary = {
+      overdue: 0,
+      dueToday: 0,
+      upcoming: 0,
+      totalScheduled: 0,
+      unread: 0,
+    };
+
+    const items = notifications
+      .map((lead) => {
+        const reminderState = getReminderState(lead.reminderDate, now);
+
+        if (reminderState.key === "unscheduled") {
+          return null;
+        }
+
+        const isAlertActive = Boolean(lead.reminderSent && !lead.reminderRead);
+
+        summary.totalScheduled += 1;
+
+        if (reminderState.key === "overdue") {
+          summary.overdue += 1;
+        } else if (reminderState.key === "today") {
+          summary.dueToday += 1;
+        } else if (reminderState.key === "upcoming") {
+          summary.upcoming += 1;
+        }
+
+        if (isAlertActive) {
+          summary.unread += 1;
+        }
+
+        return {
+          ...lead,
+          reminderState: reminderState.key,
+          reminderStateLabel: reminderState.label,
+          isAlertActive,
+        };
+      })
+      .filter(Boolean)
+      .sort((left, right) => {
+        const leftState = getReminderState(left.reminderDate, now);
+        const rightState = getReminderState(right.reminderDate, now);
+
+        if (leftState.priority !== rightState.priority) {
+          return leftState.priority - rightState.priority;
+        }
+
+        return new Date(left.reminderDate) - new Date(right.reminderDate);
+      });
+
     res.json({
-      count: notifications.length,
-      data: notifications,
+      count: summary.unread,
+      unreadCount: summary.unread,
+      scheduledCount: summary.totalScheduled,
+      summary,
+      data: items,
     });
   } catch (err) {
     console.log("Notification error:", err);

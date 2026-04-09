@@ -21,7 +21,7 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<MobileIntro />} />
         <Route path="/login" element={<Login />} />
         <Route path="/welcome" element={<MobileIntro />} />
         <Route

@@ -539,7 +539,7 @@ function KpiCard({ title, value, onClick, accent, icon }) {
   React.useEffect(() => {
     let start = 0;
     const end = value || 0;
-    const duration = 700;
+    const duration = 220;
     const increment = end / Math.max(duration / 20, 1);
 
     const timer = setInterval(() => {

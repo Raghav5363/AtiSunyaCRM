@@ -249,7 +249,7 @@ export default function LeadForm() {
               {sourceError && <Error text={sourceError} />}
             </Field>
 
-            <Field label={`Reminder Date${requiresReminder ? " *" : ""}`}>
+            <Field label={`Initial Reminder / Follow Up${requiresReminder ? " *" : ""}`}>
               <input
                 type="datetime-local"
                 value={reminderDate}
@@ -259,7 +259,9 @@ export default function LeadForm() {
               {reminderError ? (
                 <Error text={reminderError} />
               ) : (
-                <div style={styles.helper}>Use this when you want bell notification and scheduled follow-up.</div>
+                <div style={styles.helper}>
+                  This sets the first reminder and next follow-up time from create lead itself.
+                </div>
               )}
             </Field>
           </div>

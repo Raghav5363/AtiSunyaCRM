@@ -9,17 +9,20 @@ const startReminderCron = () => {
   }
 
   reminderTask = cron.schedule(
-    "* * * * *",
+    "*/15 * * * * *",
     async () => {
       try {
         const now = new Date();
 
         const leads = await Lead.find({
-          reminderDate: { $ne: null, $lte: now },
           reminderSent: false,
           isDeleted: false,
+          $or: [
+            { reminderDate: { $ne: null, $lte: now } },
+            { reminderDate: null, nextFollowUpDate: { $ne: null, $lte: now } },
+          ],
         })
-          .select("_id name purpose status reminderDate assignedTo notes")
+          .select("_id name purpose status reminderDate nextFollowUpDate assignedTo notes")
           .lean();
 
         if (!leads.length) {
@@ -32,13 +35,14 @@ const startReminderCron = () => {
         const bulkOps = [];
 
         for (const lead of leads) {
+          const effectiveReminderDate = lead.reminderDate || lead.nextFollowUpDate || null;
           const payload = {
             _id: lead._id.toString(),
             name: lead.name || "Lead",
             purpose: lead.purpose || "followup",
             status: lead.status || "new",
             notes: lead.notes || "",
-            reminderDate: lead.reminderDate,
+            reminderDate: effectiveReminderDate,
           };
 
           if (global.io) {

@@ -55,9 +55,31 @@ function toLocalDateTimeInput(value) {
   return localDate.toISOString().slice(0, 16);
 }
 
+function toUtcISOString(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function normalizeText(value, fallback = "Not set") {
   if (!value) return fallback;
   return String(value).replace(/_/g, " ");
+}
+
+function formatTimelineTime(value) {
+  if (!value) return "Not set";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not set";
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 function getStatusTone(status) {
@@ -113,6 +135,7 @@ export default function LeadView() {
   const [notes, setNotes] = useState("");
   const [nextFollowUpDate, setNextFollowUpDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [repairingTimes, setRepairingTimes] = useState(false);
 
   const token = localStorage.getItem("token");
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
@@ -166,10 +189,10 @@ export default function LeadView() {
         `${BASE_URL}/api/activities/${id}`,
         {
           activityType,
-          activityDateTime,
+          activityDateTime: toUtcISOString(activityDateTime),
           outcome,
           notes: notes.trim(),
-          nextFollowUpDate: nextFollowUpDate || null,
+          nextFollowUpDate: toUtcISOString(nextFollowUpDate),
         },
         authConfig
       );
@@ -190,6 +213,30 @@ export default function LeadView() {
     }
   };
 
+  const handleRepairTimes = async () => {
+    try {
+      setRepairingTimes(true);
+      const res = await axios.post(
+        `${BASE_URL}/api/leads/${id}/repair-times`,
+        {},
+        authConfig
+      );
+
+      if (res.data?.lead) {
+        setLead(res.data.lead);
+      }
+
+      await loadActivities();
+      toast.success("Lead times repaired");
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Unable to repair old reminder times"
+      );
+    } finally {
+      setRepairingTimes(false);
+    }
+  };
+
   if (!lead) {
     return (
       <div style={styles.loadingShell}>
@@ -205,6 +252,9 @@ export default function LeadView() {
     ...styles.shell,
     padding: isMobile ? 12 : 18,
   };
+  const canRepairTimes = ["admin", "sales_manager"].includes(
+    localStorage.getItem("role") || ""
+  );
   const heroTitleStyle = {
     ...styles.heroTitle,
     fontSize: isMobile ? 24 : 28,
@@ -421,6 +471,25 @@ export default function LeadView() {
               title="Reminder and Ownership"
               subtitle="Keep reminder dates and role ownership visible at a glance."
             >
+              {canRepairTimes && (
+                <div style={styles.repairBar}>
+                  <div style={styles.repairCopy}>
+                    Fix older entries if reminder or timeline times were saved 5 hours 30 minutes ahead.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRepairTimes}
+                    disabled={repairingTimes}
+                    style={{
+                      ...styles.secondaryButton,
+                      opacity: repairingTimes ? 0.7 : 1,
+                    }}
+                  >
+                    {repairingTimes ? "Repairing..." : "Repair old times"}
+                  </button>
+                </div>
+              )}
+
               <div style={detailGridStyle}>
                 <InfoItem label="Reminder Date" value={formatDateTime(lead.reminderDate)} />
                 <InfoItem label="Reminder State" value={lead.reminderSent ? "Sent" : "Pending"} />
@@ -470,16 +539,26 @@ export default function LeadView() {
                         </div>
 
                         <div style={styles.timelineMeta}>
-                          <span>
-                            <FiClock />
-                            {formatDateTime(activity.activityDateTime)}
-                          </span>
-                          <span>
-                            <FiCheckCircle />
-                            {activity.nextFollowUpDate
-                              ? formatDateTime(activity.nextFollowUpDate)
-                              : "No follow-up set"}
-                          </span>
+                          <div style={styles.timelineMetaRow}>
+                            <span style={styles.timelineMetaLabel}>
+                              <FiClock />
+                              Activity time
+                            </span>
+                            <span style={styles.timelineMetaValue}>
+                              {formatTimelineTime(activity.activityDateTime)}
+                            </span>
+                          </div>
+                          <div style={styles.timelineMetaRow}>
+                            <span style={styles.timelineMetaLabel}>
+                              <FiCheckCircle />
+                              Next follow-up
+                            </span>
+                            <span style={styles.timelineMetaValue}>
+                              {activity.nextFollowUpDate
+                                ? formatTimelineTime(activity.nextFollowUpDate)
+                                : "No follow-up set"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     );
@@ -814,6 +893,16 @@ const styles = {
     cursor: "pointer",
     boxShadow: "0 12px 22px rgba(37,99,235,0.2)",
   },
+  secondaryButton: {
+    border: "1px solid rgba(37,99,235,0.18)",
+    borderRadius: 12,
+    background: "rgba(239,246,255,0.92)",
+    color: "#1d4ed8",
+    padding: "10px 14px",
+    fontWeight: 800,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
   emptyTimeline: {
     padding: 18,
     borderRadius: 16,
@@ -864,11 +953,46 @@ const styles = {
     lineHeight: 1.6,
   },
   timelineMeta: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
     marginTop: 12,
+    display: "grid",
+    gap: 10,
+  },
+  timelineMetaRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  timelineMetaLabel: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
     color: "var(--text)",
     fontSize: 12,
+    fontWeight: 700,
+  },
+  timelineMetaValue: {
+    color: "var(--heading)",
+    fontSize: 12,
+    fontWeight: 700,
+    lineHeight: 1.5,
+  },
+  repairBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "12px 14px",
+    marginBottom: 12,
+    borderRadius: 16,
+    background: "rgba(239,246,255,0.72)",
+    border: "1px solid rgba(191,219,254,0.9)",
+    flexWrap: "wrap",
+  },
+  repairCopy: {
+    color: "#1e3a8a",
+    fontSize: 12,
+    lineHeight: 1.5,
   },
 };

@@ -10,8 +10,6 @@ import {
   FiCalendar,
   FiLogOut,
   FiMenu,
-  FiMoon,
-  FiSun,
 } from "react-icons/fi";
 
 function decodeJwtPayload(token) {
@@ -46,7 +44,7 @@ function formatReminderDate(value) {
 }
 
 function getReminderTag(item) {
-  const reminderState = item?.reminderState;
+  const reminderState = item?.reminderState || getReminderStateFromDate(item?.reminderDate);
 
   if (reminderState === "overdue") {
     return { label: "Overdue", color: "#b91c1c", background: "#fee2e2" };
@@ -84,6 +82,21 @@ function getReminderTag(item) {
   return { label: "Upcoming", color: "#1d4ed8", background: "#dbeafe" };
 }
 
+function getReminderStateFromDate(value) {
+  if (!value) return "unscheduled";
+
+  const reminder = new Date(value);
+  if (Number.isNaN(reminder.getTime())) return "unscheduled";
+
+  const now = new Date();
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+
+  if (reminder < now) return "overdue";
+  if (reminder <= endOfToday) return "today";
+  return "upcoming";
+}
+
 function getRoleLabel(role) {
   if (!role) return "";
   return role.replace(/_/g, " ");
@@ -110,11 +123,12 @@ export default function Topbar({ openSidebar }) {
   const navigate = useNavigate();
   const notifRef = useRef(null);
   const socketRef = useRef(null);
+  const notifiedAlertIdsRef = useRef(new Set());
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true");
   const [notifications, setNotifications] = useState(createEmptyNotifications);
   const [showNotif, setShowNotif] = useState(false);
+  const [activeReminderFilter, setActiveReminderFilter] = useState("all");
 
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
   const token = localStorage.getItem("token");
@@ -126,6 +140,7 @@ export default function Topbar({ openSidebar }) {
 
       if (!token) {
         setNotifications(emptyState);
+        setActiveReminderFilter("all");
         return;
       }
 
@@ -138,13 +153,70 @@ export default function Topbar({ openSidebar }) {
           ...emptyState.summary,
           ...(res.data?.summary || {}),
         };
+        const rawData = Array.isArray(res.data?.data) ? res.data.data : [];
+        const nextData = rawData.map((item) => ({
+          ...item,
+          reminderState: item?.reminderState || getReminderStateFromDate(item?.reminderDate),
+        }));
+        const recalculatedSummary = nextData.reduce(
+          (acc, item) => {
+            acc.totalScheduled += 1;
+
+            if (item.reminderState === "today") {
+              acc.dueToday += 1;
+            } else if (item.reminderState === "upcoming") {
+              acc.upcoming += 1;
+            } else if (item.reminderState === "overdue") {
+              acc.overdue += 1;
+            }
+
+            if (item.isAlertActive) {
+              acc.unread += 1;
+            }
+
+            return acc;
+          },
+          {
+            overdue: 0,
+            dueToday: 0,
+            upcoming: 0,
+            totalScheduled: 0,
+            unread: 0,
+          }
+        );
+        const activeAlertItems = nextData.filter((item) => item?.isAlertActive && item?._id);
+        const seenIds = notifiedAlertIdsRef.current;
+
+        activeAlertItems.forEach((item) => {
+          if (!seenIds.has(item._id)) {
+            toast.info(`${item?.name || "Lead"} reminder needs attention`, {
+              autoClose: 3000,
+            });
+
+            try {
+              const audio = new Audio("/notification.mp3");
+              audio.volume = 0.7;
+              audio.play().catch(() => {});
+            } catch {}
+
+            seenIds.add(item._id);
+          }
+        });
+
+        const activeIds = new Set(activeAlertItems.map((item) => item._id));
+        notifiedAlertIdsRef.current = new Set(
+          Array.from(seenIds).filter((id) => activeIds.has(id))
+        );
 
         setNotifications({
-          count: res.data?.count ?? summary.unread ?? 0,
-          unreadCount: res.data?.unreadCount ?? res.data?.count ?? summary.unread ?? 0,
-          scheduledCount: res.data?.scheduledCount ?? summary.totalScheduled ?? 0,
-          summary,
-          data: Array.isArray(res.data?.data) ? res.data.data : [],
+          count: recalculatedSummary.unread,
+          unreadCount: recalculatedSummary.unread,
+          scheduledCount: recalculatedSummary.totalScheduled,
+          summary: {
+            ...summary,
+            ...recalculatedSummary,
+          },
+          data: nextData,
         });
       } catch (err) {
         const status = err?.response?.status;
@@ -163,12 +235,6 @@ export default function Topbar({ openSidebar }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  useEffect(() => {
-    document.body.classList.toggle("dark", darkMode);
-    localStorage.setItem("darkMode", darkMode);
-    window.dispatchEvent(new Event("storage"));
-  }, [darkMode]);
 
   useEffect(() => {
     fetchNotifications();
@@ -210,16 +276,6 @@ export default function Topbar({ openSidebar }) {
     });
 
     socket.on("new_notification", (data) => {
-      toast.info(`${data?.name || "Lead"} reminder needs attention`, {
-        autoClose: 3000,
-      });
-
-      try {
-        const audio = new Audio("/notification.mp3");
-        audio.volume = 0.7;
-        audio.play().catch(() => {});
-      } catch {}
-
       fetchNotifications({ resetOnUnauthorized: false });
     });
 
@@ -252,6 +308,7 @@ export default function Topbar({ openSidebar }) {
   const toggleNotifications = async () => {
     if (!showNotif) {
       await fetchNotifications({ resetOnUnauthorized: false });
+      setActiveReminderFilter("all");
     }
 
     setShowNotif((prev) => !prev);
@@ -281,6 +338,8 @@ export default function Topbar({ openSidebar }) {
           : [],
       };
     });
+
+    notifiedAlertIdsRef.current.delete(id);
 
     try {
       await axios.put(
@@ -338,11 +397,11 @@ export default function Topbar({ openSidebar }) {
     notifications.scheduledCount ?? summary.totalScheduled ?? notifications.data.length;
   const summaryCards = [
     {
-      key: "overdue",
-      label: "Overdue",
-      value: summary.overdue || 0,
-      color: "#b91c1c",
-      background: "#fee2e2",
+      key: "all",
+      label: "All",
+      value: scheduledCount || 0,
+      color: "#0f172a",
+      background: "#e2e8f0",
     },
     {
       key: "today",
@@ -358,19 +417,37 @@ export default function Topbar({ openSidebar }) {
       color: "#1d4ed8",
       background: "#dbeafe",
     },
+    {
+      key: "overdue",
+      label: "Overdue",
+      value: summary.overdue || 0,
+      color: "#b91c1c",
+      background: "#fee2e2",
+    },
   ];
+  const filteredNotifications =
+    activeReminderFilter === "all"
+      ? notifications.data
+      : notifications.data.filter(
+          (item) => getReminderStateFromDate(item.reminderDate) === activeReminderFilter
+        );
 
-  const barStyle = {
-    ...styles.bar,
-    background: darkMode ? "rgba(15,23,42,0.78)" : "rgba(255,255,255,0.72)",
-  };
+  const barStyle = styles.bar;
   const titleStyle = {
     ...styles.title,
     fontSize: isMobile ? 16 : 18,
   };
+  const mobileBarStyle = isMobile
+    ? {
+        ...barStyle,
+        background: "rgba(255,255,255,0.5)",
+        borderBottom: "1px solid rgba(226,232,240,0.58)",
+        boxShadow: "0 6px 20px rgba(15,23,42,0.04)",
+      }
+    : barStyle;
 
   return (
-    <div style={barStyle}>
+    <div style={mobileBarStyle}>
       <div style={styles.left}>
         {isMobile && (
           <button onClick={openSidebar} style={styles.iconButton} aria-label="Open menu">
@@ -401,7 +478,7 @@ export default function Topbar({ openSidebar }) {
                 <div>
                   <h4 style={styles.dropdownTitle}>Reminder Center</h4>
                   <p style={styles.dropdownSub}>
-                    Track overdue, today, and upcoming follow-ups in one place.
+                    Track today, upcoming, and overdue follow-ups in one place.
                   </p>
                 </div>
                 <div style={styles.dropdownCount}>{scheduledCount || 0}</div>
@@ -409,27 +486,34 @@ export default function Topbar({ openSidebar }) {
 
               <div style={styles.summaryRow}>
                 {summaryCards.map((card) => (
-                  <div
+                  <button
                     key={card.key}
+                    type="button"
+                    onClick={() => setActiveReminderFilter(card.key)}
                     style={{
                       ...styles.summaryCard,
+                      ...(activeReminderFilter === card.key ? styles.summaryCardActive : null),
                       background: card.background,
                     }}
                   >
                     <span style={{ ...styles.summaryValue, color: card.color }}>{card.value}</span>
                     <span style={{ ...styles.summaryLabel, color: card.color }}>{card.label}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
 
-              {notifications.data.length === 0 ? (
+              {filteredNotifications.length === 0 ? (
                 <div style={styles.emptyState}>
                   <FiCalendar />
-                  <span>No scheduled reminders right now.</span>
+                  <span>
+                    {activeReminderFilter === "all"
+                      ? "No scheduled reminders right now."
+                      : `No ${activeReminderFilter} reminders right now.`}
+                  </span>
                 </div>
               ) : (
                 <>
-                  {notifications.data.map((item) => {
+                  {filteredNotifications.map((item) => {
                     const tag = getReminderTag(item);
                     const showLiveAlert = Boolean(item.isAlertActive);
 
@@ -517,14 +601,6 @@ export default function Topbar({ openSidebar }) {
           )}
         </div>
 
-        <button
-          onClick={() => setDarkMode((prev) => !prev)}
-          style={{ ...styles.iconButton, ...styles.themeButton }}
-          aria-label="Toggle theme"
-        >
-          {darkMode ? <FiSun /> : <FiMoon />}
-        </button>
-
         {!isMobile && user?.role && <span style={styles.role}>{getRoleLabel(user.role)}</span>}
 
         <button onClick={handleLogout} style={styles.iconButton} aria-label="Logout">
@@ -537,18 +613,20 @@ export default function Topbar({ openSidebar }) {
 
 const styles = {
   bar: {
-    minHeight: 60,
-    background: "rgba(255,255,255,0.72)",
+    minHeight: 62,
+    background: "rgba(255,255,255,0.62)",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "8px 12px",
-    borderBottom: "1px solid var(--border)",
+    padding: "8px 10px",
+    borderBottom: "1px solid rgba(226,232,240,0.72)",
     position: "sticky",
     top: 0,
-    zIndex: 50,
-    backdropFilter: "blur(18px)",
-    boxShadow: "0 10px 26px rgba(15,23,42,0.05)",
+    zIndex: 120,
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    boxShadow: "0 8px 24px rgba(15,23,42,0.05)",
+    flexShrink: 0,
   },
   left: {
     display: "flex",
@@ -588,8 +666,8 @@ const styles = {
     width: 38,
     height: 38,
     borderRadius: 13,
-    border: "1px solid var(--border)",
-    background: "var(--card)",
+    border: "1px solid rgba(226,232,240,0.75)",
+    background: "rgba(255,255,255,0.72)",
     color: "var(--heading)",
     display: "flex",
     alignItems: "center",
@@ -620,11 +698,7 @@ const styles = {
   },
   bellButton: {
     color: "#c27c00",
-    background: "linear-gradient(180deg, #fff7cc, #ffffff)",
-  },
-  themeButton: {
-    color: "#d4a106",
-    background: "linear-gradient(180deg, #fffdf0, #ffffff)",
+    background: "linear-gradient(180deg, rgba(255,247,204,0.9), rgba(255,255,255,0.8))",
   },
   dropdown: {
     position: "absolute",
@@ -689,7 +763,7 @@ const styles = {
   },
   summaryRow: {
     display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
     gap: 8,
     padding: "12px 14px 14px",
     borderBottom: "1px solid var(--border)",
@@ -701,6 +775,14 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 4,
+    border: "none",
+    cursor: "pointer",
+    textAlign: "left",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease",
+  },
+  summaryCardActive: {
+    transform: "translateY(-1px)",
+    boxShadow: "0 10px 22px rgba(15,23,42,0.08)",
   },
   summaryValue: {
     fontSize: 16,

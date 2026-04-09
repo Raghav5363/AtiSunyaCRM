@@ -6,6 +6,22 @@ const { protect, allowRoles } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+const parseDateOrNull = (value) => {
+  if (!value) return null;
+
+  const stringValue = String(value).trim();
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(stringValue)) {
+    const [datePart, timePart] = stringValue.split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour, minute] = timePart.split(":").map(Number);
+    return new Date(Date.UTC(year, month - 1, day, hour - 5, minute - 30));
+  }
+
+  const date = new Date(stringValue);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 const applyActivityRoleFilter = async (req, filter = {}) => {
   const scopedFilter = { ...filter };
 
@@ -125,14 +141,14 @@ router.post(
 
         activityType,
 
-        activityDateTime: new Date(activityDateTime),
+        activityDateTime: parseDateOrNull(activityDateTime),
 
         outcome: outcome || "",
 
         notes: notes || "",
 
         nextFollowUpDate: nextFollowUpDate
-          ? new Date(nextFollowUpDate)
+          ? parseDateOrNull(nextFollowUpDate)
           : null,
 
         createdBy:req.user.id
@@ -140,7 +156,7 @@ router.post(
       });
 
       if(nextFollowUpDate){
-        const followUpDate = new Date(nextFollowUpDate);
+        const followUpDate = parseDateOrNull(nextFollowUpDate);
         lead.nextFollowUpDate = followUpDate;
         lead.reminderDate = followUpDate;
         lead.reminderSent = false;
@@ -152,7 +168,7 @@ router.post(
       }
 
       if(activityDateTime){
-        lead.lastContactedAt = new Date(activityDateTime);
+        lead.lastContactedAt = parseDateOrNull(activityDateTime);
       }
 
       if(activityType){

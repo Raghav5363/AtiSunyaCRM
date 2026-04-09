@@ -37,25 +37,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [darkMode, setDarkMode] = useState(
-    localStorage.getItem("darkMode") === "true"
-  );
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
-  }, []);
-
-  useEffect(() => {
-    const syncTheme = () => {
-      setDarkMode(localStorage.getItem("darkMode") === "true");
-    };
-
-    syncTheme();
-    window.addEventListener("storage", syncTheme);
-    return () => window.removeEventListener("storage", syncTheme);
   }, []);
 
   const token = localStorage.getItem("token");
@@ -111,22 +98,22 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   const sidebarStyle = {
     width: SIDEBAR_WIDTH,
-    background: darkMode
-      ? "linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.98) 100%)"
-      : "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,251,255,0.98) 100%)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,251,255,0.96) 100%)",
     borderRight: "1px solid var(--border)",
     height: "100vh",
     padding: isMobile ? 16 : 18,
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
-    position: isMobile ? "fixed" : "relative",
-    top: 0,
+    position: isMobile ? "fixed" : "sticky",
+    top: isMobile ? 0 : 0,
     left: isMobile ? (isOpen ? 0 : -SIDEBAR_WIDTH) : 0,
     transition: "0.28s ease",
     zIndex: 1000,
     boxShadow: isMobile ? "0 24px 60px rgba(15, 23, 42, 0.2)" : "none",
     backdropFilter: "blur(18px)",
+    alignSelf: "flex-start",
+    flexShrink: 0,
   };
 
   return (
@@ -159,7 +146,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 onClick={() => isMobile && setIsOpen(false)}
                 onMouseEnter={(e) => {
                   if (!active) {
-                    e.currentTarget.style.background = darkMode ? "#172554" : "#eff6ff";
+                    e.currentTarget.style.background = "#eff6ff";
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -170,7 +157,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 style={{
                   ...styles.link,
                   background: active ? "linear-gradient(135deg, #2563eb, #1d4ed8)" : "transparent",
-                  color: active ? "#fff" : darkMode ? "#e2e8f0" : "#334155",
+                  color: active ? "#fff" : "#334155",
                   boxShadow: active ? "0 12px 24px rgba(37,99,235,0.2)" : "none",
                 }}
               >

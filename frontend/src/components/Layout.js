@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [darkMode, setDarkMode] = useState(
-    localStorage.getItem("darkMode") === "true"
-  );
+  const location = useLocation();
 
   /* ===== SCREEN DETECT ===== */
   useEffect(() => {
@@ -21,24 +20,17 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    const syncTheme = () => {
-      setDarkMode(localStorage.getItem("darkMode") === "true");
-    };
-
-    syncTheme();
-    window.addEventListener("storage", syncTheme);
-    return () => window.removeEventListener("storage", syncTheme);
-  }, []);
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname]);
 
   return (
     <div
       style={{
         display: "flex",
         minHeight: "100dvh",
-        background: darkMode
-          ? "radial-gradient(circle at top left, rgba(59,130,246,0.12), transparent 20%), var(--bg)"
-          : "radial-gradient(circle at top left, rgba(59,130,246,0.08), transparent 18%), #eef2f6",
-        overflow: "hidden",
+        background:
+          "radial-gradient(circle at top left, rgba(59,130,246,0.08), transparent 18%), #eef2f6",
+        overflow: "clip",
       }}
     >
       {/* ===== SIDEBAR ===== */}
@@ -68,6 +60,8 @@ export default function Layout({ children }) {
           flexDirection: "column",
           width: "100%",
           transition: "0.3s",
+          minWidth: 0,
+          minHeight: "100dvh",
         }}
       >
         {/* ===== TOPBAR ===== */}
@@ -80,11 +74,13 @@ export default function Layout({ children }) {
         <div
           style={{
             flex: 1,
-            padding: isMobile ? "10px" : "20px 22px",
+            padding: isMobile ? "6px 8px 2px" : "20px 22px",
             background: "var(--bg)",
             overflowY: "auto",
             WebkitOverflowScrolling: "touch",
             transition: "background 0.2s ease",
+            scrollPaddingTop: isMobile ? "70px" : "80px",
+            minHeight: 0,
           }}
         >
           <div style={{ width: "100%", maxWidth: "100%" }}>

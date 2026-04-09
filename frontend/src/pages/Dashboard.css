@@ -387,7 +387,7 @@
 
 @media (max-width: 768px) {
   .dashboard {
-    padding: 8px;
+    padding: 4px 4px 0;
   }
 
   .dashboardHero {
@@ -401,9 +401,11 @@
   }
 
   .tab {
-    min-height: 62px;
-    font-size: 10.5px;
+    min-height: 56px;
+    font-size: 9.5px;
     border-radius: 14px;
+    padding: 7px 5px;
+    gap: 4px;
   }
 
   .contentCard,
@@ -411,28 +413,74 @@
   .miniCard {
     border-radius: 16px;
   }
+
+  .tabs {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .tabsAuto {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .kpiWrapper,
+  .kpiWrapperWide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .kpiCard {
+    min-height: 126px;
+    padding: 10px 10px 8px;
+    border-radius: 18px;
+    box-shadow: 0 10px 20px rgba(148, 163, 184, 0.12);
+  }
+
+  .kpiCard h4 {
+    font-size: 11px;
+    max-width: calc(100% - 40px);
+  }
+
+  .kpiBadge {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .kpiCircle {
+    width: 58px;
+    height: 58px;
+    font-size: 17px;
+    margin-top: 10px;
+    border-width: 2px;
+  }
 }
 
 @media (max-width: 480px) {
+  .dashboard {
+    padding: 2px 2px 0;
+  }
+
   .kpiWrapper {
     grid-template-columns: 1fr 1fr;
   }
 
   .tab {
-    font-size: 10px;
-    padding: 8px 6px;
+    font-size: 9px;
+    padding: 6px 4px;
+    min-height: 54px;
   }
 
   .kpiCard {
-    min-height: 116px;
-    padding: 11px;
+    min-height: 120px;
+    padding: 10px 8px 8px;
   }
 
   .kpiCircle {
-    width: 56px;
-    height: 56px;
-    font-size: 15px;
-    margin-top: 12px;
+    width: 54px;
+    height: 54px;
+    font-size: 16px;
+    margin-top: 10px;
   }
 
   .chartCanvas {

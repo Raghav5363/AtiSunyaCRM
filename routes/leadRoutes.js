@@ -206,8 +206,31 @@ function isValidObjectId(id) {
 
 function parseDateOrNull(value) {
   if (!value) return null;
-  const date = new Date(value);
+
+  const stringValue = String(value).trim();
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(stringValue)) {
+    const [datePart, timePart] = stringValue.split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour, minute] = timePart.split(":").map(Number);
+    return new Date(Date.UTC(year, month - 1, day, hour - 5, minute - 30));
+  }
+
+  const date = new Date(stringValue);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getEffectiveReminderDate(lead) {
+  return lead?.reminderDate || lead?.nextFollowUpDate || null;
+}
+
+function shiftDateByMinutes(value, minutes) {
+  if (!value) return null;
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Date(date.getTime() + minutes * 60 * 1000);
 }
 
 function getReminderState(reminderDateValue, now = new Date()) {
@@ -229,7 +252,7 @@ function getReminderState(reminderDateValue, now = new Date()) {
     return {
       key: "overdue",
       label: "Overdue",
-      priority: 0,
+      priority: 2,
     };
   }
 
@@ -237,14 +260,14 @@ function getReminderState(reminderDateValue, now = new Date()) {
     return {
       key: "today",
       label: "Today",
-      priority: 1,
+      priority: 0,
     };
   }
 
   return {
     key: "upcoming",
     label: "Upcoming",
-    priority: 2,
+    priority: 1,
   };
 }
 
@@ -336,14 +359,17 @@ const upload = multer({
 router.get("/notifications", protect, async (req, res) => {
   try {
     const filter = await applyLeadScope(req, {
-      reminderDate: { $ne: null },
       isDeleted: false,
+      $or: [
+        { reminderDate: { $ne: null } },
+        { nextFollowUpDate: { $ne: null } },
+      ],
     });
 
     const now = new Date();
 
     const notifications = await Lead.find(filter)
-      .select("name reminderDate purpose status notes assignedTo reminderSent reminderRead")
+      .select("name reminderDate nextFollowUpDate purpose status notes assignedTo reminderSent reminderRead")
       .lean();
 
     const summary = {
@@ -356,7 +382,8 @@ router.get("/notifications", protect, async (req, res) => {
 
     const items = notifications
       .map((lead) => {
-        const reminderState = getReminderState(lead.reminderDate, now);
+        const effectiveReminderDate = getEffectiveReminderDate(lead);
+        const reminderState = getReminderState(effectiveReminderDate, now);
 
         if (reminderState.key === "unscheduled") {
           return null;
@@ -380,6 +407,7 @@ router.get("/notifications", protect, async (req, res) => {
 
         return {
           ...lead,
+          reminderDate: effectiveReminderDate,
           reminderState: reminderState.key,
           reminderStateLabel: reminderState.label,
           isAlertActive,
@@ -394,7 +422,7 @@ router.get("/notifications", protect, async (req, res) => {
           return leftState.priority - rightState.priority;
         }
 
-        return new Date(left.reminderDate) - new Date(right.reminderDate);
+        return new Date(right.reminderDate) - new Date(left.reminderDate);
       });
 
     res.json({
@@ -649,6 +677,59 @@ router.put("/notifications/:id/read", protect, async (req, res) => {
     res.status(500).json({ message: "Failed to update notification" });
   }
 });
+
+router.post(
+  "/:id/repair-times",
+  protect,
+  allowRoles("admin", "sales_manager"),
+  async (req, res) => {
+    try {
+      if (!isValidObjectId(req.params.id)) {
+        return res.status(400).json({ message: "Invalid Lead ID" });
+      }
+
+      const filter = await applyLeadScope(req, {
+        _id: new mongoose.Types.ObjectId(req.params.id),
+        isDeleted: false,
+      });
+
+      const lead = await Lead.findOne(filter);
+
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      const activities = await Activity.find({ leadId: lead._id });
+
+      lead.reminderDate = shiftDateByMinutes(lead.reminderDate, -330);
+      lead.nextFollowUpDate = shiftDateByMinutes(lead.nextFollowUpDate, -330);
+      lead.lastContactedAt = shiftDateByMinutes(lead.lastContactedAt, -330);
+      lead.reminderSent = false;
+      lead.reminderRead = false;
+
+      await Promise.all([
+        lead.save(),
+        ...activities.map((activity) => {
+          activity.activityDateTime = shiftDateByMinutes(activity.activityDateTime, -330);
+          activity.nextFollowUpDate = shiftDateByMinutes(activity.nextFollowUpDate, -330);
+          return activity.save();
+        }),
+      ]);
+
+      const repairedLead = await Lead.findById(lead._id)
+        .populate("assignedTo", "email role")
+        .populate("createdBy", "email role");
+
+      res.json({
+        message: "Lead reminder and activity times repaired",
+        lead: repairedLead,
+      });
+    } catch (err) {
+      console.log("Repair times error:", err);
+      res.status(500).json({ message: "Failed to repair lead times" });
+    }
+  }
+);
 
 router.post(
   "/bulk-upload",

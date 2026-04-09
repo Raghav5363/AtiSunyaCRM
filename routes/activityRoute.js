@@ -1,6 +1,6 @@
 const express = require("express");
 const Activity = require("../models/activity");
-const Lead = require("../models/Lead");
+const Lead = require("../models/lead");
 const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
 

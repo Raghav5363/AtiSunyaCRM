@@ -1,0 +1,6 @@
+{
+  "appId": "com.atisunya.crm",
+  "appName": "AtiSunya CRM",
+  "webDir": "build",
+  "bundledWebRuntime": false
+}

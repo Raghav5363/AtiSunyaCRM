@@ -13,10 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Users from "./pages/Users";
 import Reports from "./pages/Reports";
-
-/* NEW INTRO SCREEN */
 import MobileIntro from "./pages/MobileIntro";
-
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -24,14 +21,9 @@ export default function App() {
   return (
     <Router>
       <Routes>
-
-        {/* INTRO SCREEN */}
-        <Route path="/" element={<MobileIntro />} />
-
-        {/* LOGIN */}
+        <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
-
-        {/* DASHBOARD */}
+        <Route path="/welcome" element={<MobileIntro />} />
         <Route
           path="/dashboard"
           element={
@@ -42,8 +34,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* LEADS */}
         <Route
           path="/leads"
           element={
@@ -54,8 +44,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* ADD LEAD */}
         <Route
           path="/add"
           element={
@@ -66,8 +54,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* EDIT LEAD */}
         <Route
           path="/edit/:id"
           element={
@@ -78,8 +64,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* VIEW LEAD */}
         <Route
           path="/lead/:id"
           element={
@@ -90,8 +74,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* FOLLOWUPS */}
         <Route
           path="/followups"
           element={
@@ -102,8 +84,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* USERS */}
         <Route
           path="/users"
           element={
@@ -114,8 +94,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* REPORTS */}
         <Route
           path="/reports"
           element={
@@ -126,7 +104,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/admin-dashboard"
           element={
@@ -137,11 +114,8 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
       </Routes>
-
       <ToastContainer position="top-center" autoClose={2000} />
-
     </Router>
   );
 }

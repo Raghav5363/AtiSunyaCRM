@@ -4,6 +4,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const http = require("http");
+const fs = require("fs");
+const path = require("path");
 const { Server } = require("socket.io");
 
 const leadRoutes = require("./routes/leadRoutes");
@@ -16,6 +18,9 @@ const startReminderCron = require("./utils/reminderCron");
 
 const app = express();
 const server = http.createServer(app);
+const frontendBuildPath = path.join(__dirname, "frontend", "build");
+const frontendIndexPath = path.join(frontendBuildPath, "index.html");
+const hasFrontendBuild = fs.existsSync(frontendIndexPath);
 
 const io = new Server(server, {
   cors: {
@@ -54,17 +59,25 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-app.get("/", (req, res) => {
-  res.send("CRM API Running");
-});
-
 app.use("/api/auth", authRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/activities", activityRoutes);
 app.use("/api/followups", followupRoutes);
 
-app.use((req, res) => {
+if (hasFrontendBuild) {
+  app.use(express.static(frontendBuildPath));
+
+  app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
+    res.sendFile(frontendIndexPath);
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.send("CRM API Running");
+  });
+}
+
+app.use("/api", (req, res) => {
   res.status(404).json({
     message: "API route not found",
   });

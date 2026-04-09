@@ -146,7 +146,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       <div style={sidebarStyle}>
         <div>
           <div style={styles.brandCard}>
-            <img src="/InfratechLogo.png" alt="logo" style={styles.logo} />
+            <img src="/Atisunya.brand.png" alt="AtiSunya CRM" style={styles.logo} />
           </div>
 
           {menu.map((item) => {

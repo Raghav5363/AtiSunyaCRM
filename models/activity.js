@@ -52,4 +52,4 @@ const activitySchema = new mongoose.Schema(
 ========================= */
 activitySchema.index({ nextFollowUpDate: 1 });
 
-module.exports = mongoose.model("Activity", activitySchema);
+module.exports = mongoose.models.Activity || mongoose.model("Activity", activitySchema);

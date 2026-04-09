@@ -41,6 +41,11 @@ function formatDate(value) {
   });
 }
 
+function formatEmailDisplay(value, fallback = "Not set") {
+  if (!value) return fallback;
+  return String(value).trim();
+}
+
 function toLocalDateTimeInput(value) {
   const date = value ? new Date(value) : new Date();
   if (Number.isNaN(date.getTime())) return "";
@@ -296,7 +301,7 @@ export default function LeadView() {
           <StatCard
             icon={<FiUser />}
             label="Assigned To"
-            value={lead.assignedTo?.email || "Unassigned"}
+            value={formatEmailDisplay(lead.assignedTo?.email, "Unassigned")}
           />
           <StatCard
             icon={<FiClock />}
@@ -315,7 +320,10 @@ export default function LeadView() {
                 <InfoItem label="Email" value={lead.email || "Not set"} />
                 <InfoItem label="Phone" value={lead.phone || "Not set"} />
                 <InfoItem label="Created On" value={formatDate(lead.createdAt)} />
-                <InfoItem label="Created By" value={lead.createdBy?.email || "Not available"} />
+                <InfoItem
+                  label="Created By"
+                  value={formatEmailDisplay(lead.createdBy?.email, "Not available")}
+                />
                 <InfoItem label="Purpose" value={normalizeText(lead.purpose, "followup")} />
                 <InfoItem label="Next Follow Up" value={formatDateTime(lead.nextFollowUpDate)} />
               </div>
@@ -531,7 +539,9 @@ function StatCard({ icon, label, value }) {
     <div style={styles.statCard}>
       <div style={styles.statIcon}>{icon}</div>
       <div style={styles.statLabel}>{label}</div>
-      <div style={styles.statValue}>{value}</div>
+      <div style={styles.statValue} title={value}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -540,7 +550,9 @@ function InfoItem({ label, value }) {
   return (
     <div style={styles.infoItem}>
       <div style={styles.infoLabel}>{label}</div>
-      <div style={styles.infoValue}>{normalizeText(value, "Not set")}</div>
+      <div style={styles.infoValue} title={value}>
+        {normalizeText(value, "Not set")}
+      </div>
     </div>
   );
 }
@@ -653,6 +665,8 @@ const styles = {
     color: "#fff",
     fontWeight: 700,
     fontSize: 13,
+    minWidth: 0,
+    textAlign: "center",
   },
   statsGrid: {
     display: "grid",
@@ -665,6 +679,7 @@ const styles = {
     borderRadius: 18,
     padding: 14,
     boxShadow: "0 12px 22px rgba(15,23,42,0.05)",
+    minWidth: 0,
   },
   statIcon: {
     width: 36,
@@ -688,6 +703,9 @@ const styles = {
     color: "var(--heading)",
     fontWeight: 800,
     lineHeight: 1.45,
+    minWidth: 0,
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   },
   contentGrid: {
     display: "grid",
@@ -729,6 +747,7 @@ const styles = {
     borderRadius: 16,
     padding: 12,
     border: "1px solid rgba(226,232,240,0.9)",
+    minWidth: 0,
   },
   infoLabel: {
     fontSize: 11,
@@ -742,6 +761,9 @@ const styles = {
     color: "var(--heading)",
     fontWeight: 700,
     lineHeight: 1.45,
+    minWidth: 0,
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   },
   noteBlock: {
     display: "flex",

@@ -35,10 +35,42 @@ ChartJS.register(
 );
 
 const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+const MONTH_OPTIONS = [
+  { value: "01", label: "January" },
+  { value: "02", label: "February" },
+  { value: "03", label: "March" },
+  { value: "04", label: "April" },
+  { value: "05", label: "May" },
+  { value: "06", label: "June" },
+  { value: "07", label: "July" },
+  { value: "08", label: "August" },
+  { value: "09", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
+];
 
 function getCurrentMonthValue() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function splitMonthValue(value) {
+  const safeValue = /^\d{4}-\d{2}$/.test(String(value || "")) ? String(value) : getCurrentMonthValue();
+  const [year, month] = safeValue.split("-");
+  return { year, month };
+}
+
+function buildYearOptions(selectedYear) {
+  const currentYear = new Date().getFullYear();
+  const baseYear = Number(selectedYear) || currentYear;
+  const years = new Set([currentYear, baseYear]);
+
+  for (let offset = -3; offset <= 3; offset += 1) {
+    years.add(baseYear + offset);
+  }
+
+  return Array.from(years).sort((a, b) => b - a);
 }
 
 function formatDateTime(value) {
@@ -437,6 +469,8 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
+  const { year: selectedYear, month: selectedMonth } = useMemo(() => splitMonthValue(month), [month]);
+  const yearOptions = useMemo(() => buildYearOptions(selectedYear), [selectedYear]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -534,7 +568,7 @@ export default function Reports() {
   };
   const controlsStyle = {
     ...styles.controls,
-    gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(150px, 1fr))",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(150px, 1fr))",
   };
   const bannerStyle = {
     ...styles.banner,
@@ -776,12 +810,30 @@ export default function Reports() {
               <FiFilter />
               Report Month
             </span>
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              style={styles.monthInput}
-            />
+            <div style={styles.monthSelector}>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setMonth(`${selectedYear}-${e.target.value}`)}
+                style={styles.monthInput}
+              >
+                {MONTH_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedYear}
+                onChange={(e) => setMonth(`${e.target.value}-${selectedMonth}`)}
+                style={styles.monthInput}
+              >
+                {yearOptions.map((option) => (
+                  <option key={option} value={String(option)}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <button onClick={fetchReport} style={styles.secondaryButton} type="button">
@@ -1158,6 +1210,11 @@ const styles = {
     fontWeight: 700,
     color: "#1d4ed8",
   },
+  monthSelector: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1.2fr) minmax(96px, 0.8fr)",
+    gap: 8,
+  },
   monthInput: {
     width: "100%",
     padding: "11px 12px",
@@ -1165,6 +1222,7 @@ const styles = {
     border: "1px solid #bfdbfe",
     background: "#ffffff",
     color: "#0f172a",
+    minWidth: 0,
   },
   primaryButton: {
     border: "none",
@@ -1340,11 +1398,15 @@ const styles = {
     fontWeight: 700,
     color: "var(--heading)",
     fontSize: 13,
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   },
   meta: {
     color: "var(--text)",
     fontSize: 11,
     marginTop: 4,
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   },
   rowStats: {
     display: "flex",

@@ -2,7 +2,7 @@ console.log("leadRoutes loaded");
 
 const express = require("express");
 const mongoose = require("mongoose");
-const Lead = require("../models/Lead");
+const Lead = require("../models/lead");
 const Activity = require("../models/activity");
 const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");

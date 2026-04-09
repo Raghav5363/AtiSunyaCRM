@@ -34,7 +34,7 @@ export default function Layout({ children }) {
     <div
       style={{
         display: "flex",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         background: darkMode
           ? "radial-gradient(circle at top left, rgba(59,130,246,0.12), transparent 20%), var(--bg)"
           : "radial-gradient(circle at top left, rgba(59,130,246,0.08), transparent 18%), #eef2f6",
@@ -83,6 +83,7 @@ export default function Layout({ children }) {
             padding: isMobile ? "10px" : "20px 22px",
             background: "var(--bg)",
             overflowY: "auto",
+            WebkitOverflowScrolling: "touch",
             transition: "background 0.2s ease",
           }}
         >

@@ -1,5 +1,5 @@
 const cron = require("node-cron");
-const Lead = require("../models/Lead");
+const Lead = require("../models/lead");
 
 let reminderTask = null;
 

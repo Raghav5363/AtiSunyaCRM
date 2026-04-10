@@ -118,6 +118,32 @@ function createEmptyNotifications() {
   };
 }
 
+function playNotificationTone() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const audioContext = new AudioContextClass();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(784, audioContext.currentTime);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+
+    gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, audioContext.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.32);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.35);
+    oscillator.onended = () => {
+      audioContext.close().catch(() => {});
+    };
+  } catch {}
+}
+
 export default function Topbar({ openSidebar }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -193,11 +219,7 @@ export default function Topbar({ openSidebar }) {
               autoClose: 3000,
             });
 
-            try {
-              const audio = new Audio("/notification.mp3");
-              audio.volume = 0.7;
-              audio.play().catch(() => {});
-            } catch {}
+            playNotificationTone();
 
             seenIds.add(item._id);
           }
@@ -478,7 +500,7 @@ export default function Topbar({ openSidebar }) {
                 <div>
                   <h4 style={styles.dropdownTitle}>Reminder Center</h4>
                   <p style={styles.dropdownSub}>
-                    Track today, upcoming, and overdue follow-ups in one place.
+                    Action-first reminders only. Open the lead directly from here.
                   </p>
                 </div>
                 <div style={styles.dropdownCount}>{scheduledCount || 0}</div>
@@ -505,7 +527,7 @@ export default function Topbar({ openSidebar }) {
               {filteredNotifications.length === 0 ? (
                 <div style={styles.emptyState}>
                   <FiCalendar />
-                  <span>
+                    <span>
                     {activeReminderFilter === "all"
                       ? "No scheduled reminders right now."
                       : `No ${activeReminderFilter} reminders right now.`}
@@ -566,13 +588,13 @@ export default function Topbar({ openSidebar }) {
                             {(item.purpose || "followup").replace(/_/g, " ")}
                           </span>
                           <span style={styles.notificationTime}>
-                            {formatReminderDate(item.reminderDate)}
+                            Due {formatReminderDate(item.reminderDate)}
                           </span>
                         </div>
 
                         <div style={styles.notificationFooter}>
                           <div style={styles.notificationNotes}>
-                            {item.notes || "No notes added"}
+                            {item.notes ? item.notes.trim() : "No notes added"}
                           </div>
                           <div style={styles.notificationLink}>
                             <span>Open lead</span>
@@ -813,6 +835,7 @@ const styles = {
     cursor: "pointer",
     textAlign: "left",
     background: "transparent",
+    transition: "background 0.18s ease, transform 0.18s ease",
   },
   notificationItemAlert: {
     background: "linear-gradient(180deg, rgba(254,242,242,0.92), rgba(255,255,255,0.98))",
@@ -882,6 +905,10 @@ const styles = {
     color: "var(--text)",
     lineHeight: 1.5,
     flex: 1,
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
   },
   notificationLink: {
     display: "inline-flex",

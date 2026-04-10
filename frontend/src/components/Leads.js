@@ -8,6 +8,8 @@ export default function Leads() {
   const [leads, setLeads] = useState([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [assignedToFilter, setAssignedToFilter] = useState("");
+  const [assignedToLabel, setAssignedToLabel] = useState("");
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,14 +21,29 @@ export default function Leads() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const status = params.get("status");
+    const assignedTo = params.get("assignedTo");
+    const assignee = params.get("assignee");
     setFilterStatus(status || "all");
+    setAssignedToFilter(assignedTo || "");
+    setAssignedToLabel(assignee || "");
   }, [location.search]);
 
   const fetchLeads = useCallback(async () => {
     try {
       let url = API;
+      const params = new URLSearchParams();
+
       if (filterStatus !== "all") {
-        url += `?status=${filterStatus}`;
+        params.set("status", filterStatus);
+      }
+
+      if (assignedToFilter) {
+        params.set("assignedTo", assignedToFilter);
+      }
+
+      const query = params.toString();
+      if (query) {
+        url += `?${query}`;
       }
 
       const res = await axios.get(url, {
@@ -38,7 +55,7 @@ export default function Leads() {
       console.error(err);
       toast.error("Failed to load leads");
     }
-  }, [API, token, filterStatus]);
+  }, [API, token, filterStatus, assignedToFilter]);
 
   useEffect(() => {
     fetchLeads();
@@ -48,6 +65,13 @@ export default function Leads() {
     .filter((lead) => {
       if (filterStatus !== "all" && lead?.status !== filterStatus) {
         return false;
+      }
+
+      if (assignedToFilter) {
+        const leadAssignedId = lead?.assignedTo?._id || lead?.assignedTo || "";
+        if (String(leadAssignedId) !== String(assignedToFilter)) {
+          return false;
+        }
       }
 
       const s = search.toLowerCase();
@@ -83,13 +107,30 @@ export default function Leads() {
         style={styles.search}
       />
 
+      {assignedToLabel && (
+        <div style={styles.contextBar}>
+          Showing leads for <strong>{assignedToLabel}</strong>
+        </div>
+      )}
+
       <div style={styles.filterWrap}>
         {filters.map((filter) => (
           <button
             key={filter}
             onClick={() => {
               setFilterStatus(filter);
-              navigate(`/leads${filter === "all" ? "" : `?status=${filter}`}`);
+              const params = new URLSearchParams();
+              if (filter !== "all") {
+                params.set("status", filter);
+              }
+              if (assignedToFilter) {
+                params.set("assignedTo", assignedToFilter);
+              }
+              if (assignedToLabel) {
+                params.set("assignee", assignedToLabel);
+              }
+              const query = params.toString();
+              navigate(`/leads${query ? `?${query}` : ""}`);
             }}
             style={{
               ...styles.filterBtn,
@@ -195,6 +236,15 @@ const styles = {
     gap: "8px",
     flexWrap: "wrap",
     marginBottom: "14px",
+  },
+  contextBar: {
+    marginBottom: 12,
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "#eff6ff",
+    border: "1px solid #bfdbfe",
+    color: "#1d4ed8",
+    fontSize: 12,
   },
   filterBtn: {
     padding: "8px 12px",

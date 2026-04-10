@@ -12,10 +12,7 @@ const parseDateOrNull = (value) => {
   const stringValue = String(value).trim();
 
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(stringValue)) {
-    const [datePart, timePart] = stringValue.split("T");
-    const [year, month, day] = datePart.split("-").map(Number);
-    const [hour, minute] = timePart.split(":").map(Number);
-    return new Date(Date.UTC(year, month - 1, day, hour - 5, minute - 30));
+    return new Date(stringValue);
   }
 
   const date = new Date(stringValue);
@@ -198,9 +195,11 @@ router.get("/:leadId", protect, async (req,res)=>{
 
   try{
 
-    const activities = await Activity.find({
-      leadId:req.params.leadId
-    })
+    const activities = await Activity.find(
+      await applyActivityRoleFilter(req, {
+        leadId:req.params.leadId
+      })
+    )
     .populate("createdBy","email role")
     .sort({activityDateTime:-1});
 

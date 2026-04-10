@@ -68,6 +68,21 @@ const formatMetaDateTime = (date) => {
   });
 };
 
+const getSchedulePriority = (item) => {
+  const reminderDate = item?.leadId?.reminderDate || item?.nextFollowUpDate;
+  const parsed = reminderDate ? new Date(reminderDate) : null;
+
+  if (!parsed || Number.isNaN(parsed.getTime())) return 3;
+
+  const now = new Date();
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+
+  if (parsed < now) return 0;
+  if (parsed <= endOfToday) return 1;
+  return 2;
+};
+
 const getActivityIcon = (type) => {
   switch (type) {
     case "call":
@@ -233,6 +248,21 @@ export default function Dashboard() {
     converted: team.reduce((sum, item) => sum + (item.converted || 0), 0),
     followups: team.reduce((sum, item) => sum + (item.followups || 0), 0),
   };
+
+  const prioritizedSchedule = useMemo(
+    () =>
+      [...schedule]
+        .sort((left, right) => {
+          const priorityDiff = getSchedulePriority(left) - getSchedulePriority(right);
+          if (priorityDiff !== 0) return priorityDiff;
+
+          const leftTime = new Date(left.nextFollowUpDate || left.activityDateTime || 0).getTime();
+          const rightTime = new Date(right.nextFollowUpDate || right.activityDateTime || 0).getTime();
+          return leftTime - rightTime;
+        })
+        .slice(0, 8),
+    [schedule]
+  );
 
   const pieData = {
     labels: [
@@ -405,10 +435,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {schedule.length === 0 ? (
+          {prioritizedSchedule.length === 0 ? (
             <p className="emptyText">No activities scheduled for today.</p>
           ) : (
-            schedule.map((item, index) => (
+            prioritizedSchedule.map((item, index) => (
               <div
                 key={`${item._id}-${index}`}
                 className="scheduleCard"

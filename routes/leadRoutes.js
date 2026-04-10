@@ -210,10 +210,7 @@ function parseDateOrNull(value) {
   const stringValue = String(value).trim();
 
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(stringValue)) {
-    const [datePart, timePart] = stringValue.split("T");
-    const [year, month, day] = datePart.split("-").map(Number);
-    const [hour, minute] = timePart.split(":").map(Number);
-    return new Date(Date.UTC(year, month - 1, day, hour - 5, minute - 30));
+    return new Date(stringValue);
   }
 
   const date = new Date(stringValue);
@@ -269,6 +266,16 @@ function getReminderState(reminderDateValue, now = new Date()) {
     label: "Upcoming",
     priority: 1,
   };
+}
+
+function getNotificationPriority(item) {
+  if (item?.isAlertActive && item?.reminderState === "overdue") return 0;
+  if (item?.isAlertActive && item?.reminderState === "today") return 1;
+  if (item?.reminderState === "overdue") return 2;
+  if (item?.isAlertActive) return 3;
+  if (item?.reminderState === "today") return 4;
+  if (item?.reminderState === "upcoming") return 5;
+  return 6;
 }
 
 async function applyLeadScope(req, filter = {}) {
@@ -378,6 +385,7 @@ router.get("/notifications", protect, async (req, res) => {
       upcoming: 0,
       totalScheduled: 0,
       unread: 0,
+      important: 0,
     };
 
     const items = notifications
@@ -405,6 +413,10 @@ router.get("/notifications", protect, async (req, res) => {
           summary.unread += 1;
         }
 
+        if (isAlertActive || reminderState.key === "overdue" || reminderState.key === "today") {
+          summary.important += 1;
+        }
+
         return {
           ...lead,
           reminderDate: effectiveReminderDate,
@@ -415,14 +427,14 @@ router.get("/notifications", protect, async (req, res) => {
       })
       .filter(Boolean)
       .sort((left, right) => {
-        const leftState = getReminderState(left.reminderDate, now);
-        const rightState = getReminderState(right.reminderDate, now);
+        const leftPriority = getNotificationPriority(left);
+        const rightPriority = getNotificationPriority(right);
 
-        if (leftState.priority !== rightState.priority) {
-          return leftState.priority - rightState.priority;
+        if (leftPriority !== rightPriority) {
+          return leftPriority - rightPriority;
         }
 
-        return new Date(right.reminderDate) - new Date(left.reminderDate);
+        return new Date(left.reminderDate) - new Date(right.reminderDate);
       });
 
     res.json({
@@ -483,6 +495,9 @@ router.get("/reports/overview", protect, async (req, res) => {
     let overdueReminders = 0;
     let dueToday = 0;
     let upcomingReminders = 0;
+    let callsLogged = 0;
+    let connectedCalls = 0;
+    let pendingCalls = 0;
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const tomorrowStart = new Date(todayStart);
@@ -598,13 +613,39 @@ router.get("/reports/overview", protect, async (req, res) => {
 
     const activityRegister = activities.map((activity) => ({
       id: activity._id.toString(),
+      leadId: activity.leadId?._id?.toString() || "",
       leadName: activity.leadId?.name || "Lead",
       type: formatHumanLabel(activity.activityType, "Activity"),
+      rawType: activity.activityType || "",
       outcome: activity.outcome || "No outcome",
       notes: activity.notes || "",
       activityDateTime: activity.activityDateTime,
       nextFollowUpDate: activity.nextFollowUpDate,
       createdBy: activity.createdBy?.email || "",
+    }));
+
+    const callActivities = activityRegister.filter((activity) => activity.rawType === "call");
+    callsLogged = callActivities.length;
+    connectedCalls = callActivities.filter((activity) =>
+      ["Connected", "Interested", "Visited"].includes(activity.outcome)
+    ).length;
+    pendingCalls = callActivities.filter((activity) =>
+      ["Not Picked", "Busy", "Switch Off", "No outcome"].includes(activity.outcome)
+    ).length;
+
+    const callOutcomeBreakdown = buildCountList(
+      callActivities,
+      (activity) => activity.outcome || "No outcome"
+    );
+
+    const callStatusBoard = callOutcomeBreakdown.map((item) => ({
+      ...item,
+      tone:
+        item.label === "Connected" || item.label === "Interested" || item.label === "Visited"
+          ? "positive"
+          : item.label === "Busy" || item.label === "Not Picked" || item.label === "Switch Off"
+            ? "warning"
+            : "neutral",
     }));
 
     res.json({
@@ -628,6 +669,9 @@ router.get("/reports/overview", protect, async (req, res) => {
         dueToday,
         upcomingReminders,
         activitiesLogged: activities.length,
+        callsLogged,
+        connectedCalls,
+        pendingCalls,
         conversionRate: periodLeads.length
           ? Number(((statusCounts.closed / periodLeads.length) * 100).toFixed(1))
           : 0,
@@ -639,6 +683,8 @@ router.get("/reports/overview", protect, async (req, res) => {
       purposeBreakdown,
       activityTypeBreakdown,
       activityOutcomeBreakdown,
+      callOutcomeBreakdown,
+      callStatusBoard,
       assigneeBreakdown,
       recentLeads: leadRegister.slice(0, 8),
       recentActivities: activityRegister.slice(0, 8),

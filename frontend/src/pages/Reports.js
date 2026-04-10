@@ -92,6 +92,18 @@ function formatHumanLabel(value, fallback = "Unknown") {
   return String(value).replace(/_/g, " ");
 }
 
+function getBreakdownTone(tone) {
+  if (tone === "positive") {
+    return { color: "#047857", background: "#d1fae5" };
+  }
+
+  if (tone === "warning") {
+    return { color: "#b45309", background: "#fef3c7" };
+  }
+
+  return { color: "#475569", background: "#e2e8f0" };
+}
+
 function normalizeSource(source) {
   const value = String(source || "").trim();
   return value || "Direct/Unknown";
@@ -229,6 +241,9 @@ function buildReportPayload(monthValue, leads, rawActivities) {
   let overdueReminders = 0;
   let dueToday = 0;
   let upcomingReminders = 0;
+  let callsLogged = 0;
+  let connectedCalls = 0;
+  let pendingCalls = 0;
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const tomorrowStart = new Date(todayStart);
@@ -322,8 +337,10 @@ function buildReportPayload(monthValue, leads, rawActivities) {
   const activityRegister = activities
     .map((activity) => ({
       id: activity._id,
+      leadId: activity.leadId?._id || activity.leadId || "",
       leadName: activity.leadName || "Lead",
       type: formatHumanLabel(activity.activityType, "Activity"),
+      rawType: activity.activityType || "",
       outcome: activity.outcome || "No outcome",
       notes: activity.notes || "",
       activityDateTime: activity.activityDateTime,
@@ -331,6 +348,30 @@ function buildReportPayload(monthValue, leads, rawActivities) {
       createdBy: activity.createdBy?.email || "",
     }))
     .sort((a, b) => new Date(b.activityDateTime) - new Date(a.activityDateTime));
+
+  const callActivities = activityRegister.filter((activity) => activity.rawType === "call");
+  callsLogged = callActivities.length;
+  connectedCalls = callActivities.filter((activity) =>
+    ["Connected", "Interested", "Visited"].includes(activity.outcome)
+  ).length;
+  pendingCalls = callActivities.filter((activity) =>
+    ["Not Picked", "Busy", "Switch Off", "No outcome"].includes(activity.outcome)
+  ).length;
+
+  const callOutcomeBreakdown = buildCountList(
+    callActivities,
+    (activity) => activity.outcome || "No outcome"
+  );
+
+  const callStatusBoard = callOutcomeBreakdown.map((item) => ({
+    ...item,
+    tone:
+      item.label === "Connected" || item.label === "Interested" || item.label === "Visited"
+        ? "positive"
+        : item.label === "Busy" || item.label === "Not Picked" || item.label === "Switch Off"
+          ? "warning"
+          : "neutral",
+  }));
 
   return {
     period: {
@@ -353,6 +394,9 @@ function buildReportPayload(monthValue, leads, rawActivities) {
       dueToday,
       upcomingReminders,
       activitiesLogged: activities.length,
+      callsLogged,
+      connectedCalls,
+      pendingCalls,
       conversionRate: periodLeads.length
         ? Number(((statusCounts.closed / periodLeads.length) * 100).toFixed(1))
         : 0,
@@ -364,6 +408,8 @@ function buildReportPayload(monthValue, leads, rawActivities) {
     purposeBreakdown,
     activityTypeBreakdown,
     activityOutcomeBreakdown,
+    callOutcomeBreakdown,
+    callStatusBoard,
     assigneeBreakdown,
     recentLeads: leadRegister.slice(0, 8),
     recentActivities: activityRegister.slice(0, 8),
@@ -905,6 +951,12 @@ export default function Reports() {
             note={`${summary.activitiesLogged || 0} activities logged`}
           />
           <MetricCard
+            icon={<FiBarChart2 />}
+            title="Calls Logged"
+            value={summary.callsLogged || 0}
+            note={`${summary.connectedCalls || 0} connected`}
+          />
+          <MetricCard
             icon={<FiCalendar />}
             title="Site Visits"
             value={`${summary.siteVisitPlanned || 0} / ${summary.siteVisitDone || 0}`}
@@ -917,7 +969,7 @@ export default function Reports() {
             note="Overdue / due today"
           />
           <MetricCard
-            icon={<FiBarChart2 />}
+            icon={<FiClock />}
             title="Pipeline Loss"
             value={`${(summary.notInterested || 0) + (summary.junk || 0)}`}
             note="Not interested + junk"
@@ -1052,6 +1104,26 @@ export default function Reports() {
 
         <div style={gridTwoStyle}>
           <SectionCard
+            title="Call performance"
+            subtitle="Month-wise call outcomes in a clean CRM format"
+          >
+            {(report?.callStatusBoard || []).length === 0 ? (
+              <EmptyState text="No call activity logged in this month." />
+            ) : (
+              <div style={styles.breakdownGrid}>
+                {(report?.callStatusBoard || []).map((item) => (
+                  <BreakdownCard
+                    key={item.label}
+                    label={item.label}
+                    count={item.count}
+                    tone={item.tone}
+                  />
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard
             title="Purpose breakdown"
             subtitle="What kind of business intent came in this month"
           >
@@ -1129,11 +1201,13 @@ function SectionCard({ title, subtitle, children }) {
   );
 }
 
-function BreakdownCard({ label, count }) {
+function BreakdownCard({ label, count, tone = "neutral" }) {
+  const toneStyle = getBreakdownTone(tone);
+
   return (
-    <div style={styles.breakdownCard}>
-      <div style={styles.breakdownCount}>{count || 0}</div>
-      <div style={styles.breakdownLabel}>{label}</div>
+    <div style={{ ...styles.breakdownCard, background: toneStyle.background }}>
+      <div style={{ ...styles.breakdownCount, color: toneStyle.color }}>{count || 0}</div>
+      <div style={{ ...styles.breakdownLabel, color: toneStyle.color }}>{label}</div>
     </div>
   );
 }

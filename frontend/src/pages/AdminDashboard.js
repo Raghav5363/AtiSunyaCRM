@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { FiShield, FiTrendingUp, FiUserCheck, FiUsers } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 export default function AdminDashboard() {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
+  const navigate = useNavigate();
 
   const [users, setUsers] = useState([]);
   const [leads, setLeads] = useState([]);
@@ -108,6 +110,29 @@ export default function AdminDashboard() {
     return Array.from(grouped.values()).sort((a, b) => b.total - a.total);
   }, [leads]);
 
+  const openAssigneeLeads = useCallback(
+    (member, status = "") => {
+      const assigneeId = member?.user?._id;
+      const assigneeEmail = member?.user?.email || "Unassigned";
+      const params = new URLSearchParams();
+
+      if (assigneeId && assigneeId !== "unassigned") {
+        params.set("assignedTo", assigneeId);
+      }
+
+      if (assigneeEmail) {
+        params.set("assignee", assigneeEmail);
+      }
+
+      if (status) {
+        params.set("status", status);
+      }
+
+      navigate(`/leads?${params.toString()}`);
+    },
+    [navigate]
+  );
+
   if (role !== "admin") {
     return <div style={styles.empty}>Only admin can access this dashboard.</div>;
   }
@@ -148,16 +173,51 @@ export default function AdminDashboard() {
           <div style={styles.emptyPanel}>No team data available.</div>
         ) : (
           team.map((member, index) => (
-            <div key={`${member.user?._id || "unassigned"}-${index}`} style={styles.row}>
+            <button
+              key={`${member.user?._id || "unassigned"}-${index}`}
+              type="button"
+              style={styles.rowButton}
+              onClick={() => openAssigneeLeads(member)}
+            >
+              <div style={styles.row}>
               <div>
                 <div style={styles.name}>{member.user?.email || "Unassigned"}</div>
-                <div style={styles.meta}>{member.followups || 0} active follow-ups</div>
+                <div style={styles.meta}>Click to open this user&apos;s leads</div>
               </div>
               <div style={styles.stats}>
-                <span>{member.total || 0} leads</span>
-                <strong>{member.converted || 0} closed</strong>
+                <button
+                  type="button"
+                  style={styles.metricButton}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openAssigneeLeads(member);
+                  }}
+                >
+                  {member.total || 0} leads
+                </button>
+                <button
+                  type="button"
+                  style={styles.metricButton}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openAssigneeLeads(member, "followup");
+                  }}
+                >
+                  {member.followups || 0} follow-ups
+                </button>
+                <button
+                  type="button"
+                  style={{ ...styles.metricButton, ...styles.metricButtonStrong }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openAssigneeLeads(member, "closed");
+                  }}
+                >
+                  {member.converted || 0} closed
+                </button>
               </div>
-            </div>
+              </div>
+            </button>
           ))
         )}
       </div>
@@ -271,6 +331,14 @@ const styles = {
     borderBottom: "1px solid var(--border)",
     flexWrap: "wrap",
   },
+  rowButton: {
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    textAlign: "left",
+    cursor: "pointer",
+  },
   name: {
     fontWeight: 700,
     color: "var(--heading)",
@@ -285,8 +353,22 @@ const styles = {
     display: "flex",
     gap: 10,
     alignItems: "center",
+    flexWrap: "wrap",
     fontSize: 11,
     color: "var(--text)",
+  },
+  metricButton: {
+    border: "1px solid #dbe2ea",
+    background: "#ffffff",
+    color: "#334155",
+    borderRadius: 999,
+    padding: "7px 11px",
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  metricButtonStrong: {
+    color: "#0f172a",
   },
   empty: {
     padding: 20,

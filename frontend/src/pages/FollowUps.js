@@ -14,6 +14,7 @@ export default function FollowUps() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const [activeSection, setActiveSection] = useState("today");
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -133,7 +134,7 @@ export default function FollowUps() {
     const typeConfig = getTypeConfig(type);
 
     return (
-      <div style={styles.section}>
+      <div id={`followup-${type}`} style={styles.section}>
         <div style={styles.sectionHeader}>
           <div style={styles.sectionTitleWrap}>
             <div style={{ ...styles.sectionIcon, color: typeConfig.color }}>
@@ -166,9 +167,36 @@ export default function FollowUps() {
           gap: isMobile ? 8 : 10,
         }}
       >
-        <SummaryChip title="Today" value={totals.today} color="#2563eb" />
-        <SummaryChip title="Overdue" value={totals.overdue} color="#dc2626" />
-        <SummaryChip title="Upcoming" value={totals.upcoming} color="#f59e0b" />
+        <SummaryChip
+          title="Today"
+          value={totals.today}
+          color="#2563eb"
+          active={activeSection === "today"}
+          onClick={() => {
+            setActiveSection("today");
+            document.getElementById("followup-today")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        />
+        <SummaryChip
+          title="Overdue"
+          value={totals.overdue}
+          color="#dc2626"
+          active={activeSection === "overdue"}
+          onClick={() => {
+            setActiveSection("overdue");
+            document.getElementById("followup-overdue")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        />
+        <SummaryChip
+          title="Upcoming"
+          value={totals.upcoming}
+          color="#f59e0b"
+          active={activeSection === "upcoming"}
+          onClick={() => {
+            setActiveSection("upcoming");
+            document.getElementById("followup-upcoming")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        />
       </div>
 
       {renderSection("Today's Follow-ups", today, "today")}
@@ -178,12 +206,21 @@ export default function FollowUps() {
   );
 }
 
-function SummaryChip({ title, value, color }) {
+function SummaryChip({ title, value, color, active, onClick }) {
   return (
-    <div style={{ ...styles.summaryChip, borderColor: `${color}33` }}>
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        ...styles.summaryChip,
+        borderColor: `${color}33`,
+        boxShadow: active ? `0 12px 24px ${color}22` : styles.summaryChip.boxShadow,
+        background: active ? `${color}08` : styles.summaryChip.background,
+      }}
+    >
       <div style={{ ...styles.summaryValue, color }}>{value}</div>
       <div style={styles.summaryTitle}>{title}</div>
-    </div>
+    </button>
   );
 }
 
@@ -217,6 +254,8 @@ const styles = {
     padding: 10,
     textAlign: "center",
     boxShadow: "0 6px 14px rgba(15,23,42,0.04)",
+    cursor: "pointer",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease",
   },
   summaryValue: {
     fontSize: 18,

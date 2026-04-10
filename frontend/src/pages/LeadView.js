@@ -135,7 +135,6 @@ export default function LeadView() {
   const [notes, setNotes] = useState("");
   const [nextFollowUpDate, setNextFollowUpDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [repairingTimes, setRepairingTimes] = useState(false);
 
   const token = localStorage.getItem("token");
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
@@ -213,30 +212,6 @@ export default function LeadView() {
     }
   };
 
-  const handleRepairTimes = async () => {
-    try {
-      setRepairingTimes(true);
-      const res = await axios.post(
-        `${BASE_URL}/api/leads/${id}/repair-times`,
-        {},
-        authConfig
-      );
-
-      if (res.data?.lead) {
-        setLead(res.data.lead);
-      }
-
-      await loadActivities();
-      toast.success("Lead times repaired");
-    } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Unable to repair old reminder times"
-      );
-    } finally {
-      setRepairingTimes(false);
-    }
-  };
-
   if (!lead) {
     return (
       <div style={styles.loadingShell}>
@@ -252,9 +227,6 @@ export default function LeadView() {
     ...styles.shell,
     padding: isMobile ? 12 : 18,
   };
-  const canRepairTimes = ["admin", "sales_manager"].includes(
-    localStorage.getItem("role") || ""
-  );
   const heroTitleStyle = {
     ...styles.heroTitle,
     fontSize: isMobile ? 24 : 28,
@@ -471,25 +443,6 @@ export default function LeadView() {
               title="Reminder and Ownership"
               subtitle="Keep reminder dates and role ownership visible at a glance."
             >
-              {canRepairTimes && (
-                <div style={styles.repairBar}>
-                  <div style={styles.repairCopy}>
-                    Fix older entries if reminder or timeline times were saved 5 hours 30 minutes ahead.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRepairTimes}
-                    disabled={repairingTimes}
-                    style={{
-                      ...styles.secondaryButton,
-                      opacity: repairingTimes ? 0.7 : 1,
-                    }}
-                  >
-                    {repairingTimes ? "Repairing..." : "Repair old times"}
-                  </button>
-                </div>
-              )}
-
               <div style={detailGridStyle}>
                 <InfoItem label="Reminder Date" value={formatDateTime(lead.reminderDate)} />
                 <InfoItem label="Reminder State" value={lead.reminderSent ? "Sent" : "Pending"} />
@@ -893,16 +846,6 @@ const styles = {
     cursor: "pointer",
     boxShadow: "0 12px 22px rgba(37,99,235,0.2)",
   },
-  secondaryButton: {
-    border: "1px solid rgba(37,99,235,0.18)",
-    borderRadius: 12,
-    background: "rgba(239,246,255,0.92)",
-    color: "#1d4ed8",
-    padding: "10px 14px",
-    fontWeight: 800,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  },
   emptyTimeline: {
     padding: 18,
     borderRadius: 16,
@@ -976,23 +919,6 @@ const styles = {
     color: "var(--heading)",
     fontSize: 12,
     fontWeight: 700,
-    lineHeight: 1.5,
-  },
-  repairBar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    padding: "12px 14px",
-    marginBottom: 12,
-    borderRadius: 16,
-    background: "rgba(239,246,255,0.72)",
-    border: "1px solid rgba(191,219,254,0.9)",
-    flexWrap: "wrap",
-  },
-  repairCopy: {
-    color: "#1e3a8a",
-    fontSize: 12,
     lineHeight: 1.5,
   },
 };

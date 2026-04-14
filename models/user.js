@@ -1,6 +1,42 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
+const pushSubscriptionSchema = new mongoose.Schema(
+  {
+    endpoint: {
+      type: String,
+      required: true,
+    },
+    expirationTime: {
+      type: Date,
+      default: null,
+    },
+    keys: {
+      p256dh: {
+        type: String,
+        required: true,
+      },
+      auth: {
+        type: String,
+        required: true,
+      },
+    },
+    userAgent: {
+      type: String,
+      default: "",
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -15,6 +51,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["admin", "sales_manager", "sales_agent"],
     default: "sales_agent"
+  },
+  pushSubscriptions: {
+    type: [pushSubscriptionSchema],
+    default: [],
   }
 });
 

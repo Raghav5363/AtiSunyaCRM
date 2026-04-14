@@ -118,6 +118,13 @@ function createEmptyNotifications() {
   };
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const safeBase64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(safeBase64);
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
+
 function playNotificationTone() {
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -155,6 +162,13 @@ export default function Topbar({ openSidebar }) {
   const [notifications, setNotifications] = useState(createEmptyNotifications);
   const [showNotif, setShowNotif] = useState(false);
   const [activeReminderFilter, setActiveReminderFilter] = useState("all");
+  const [pushState, setPushState] = useState({
+    supported: false,
+    enabled: false,
+    subscribed: false,
+    loading: false,
+    permission: "default",
+  });
 
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
   const token = localStorage.getItem("token");
@@ -252,6 +266,44 @@ export default function Topbar({ openSidebar }) {
     [BASE_URL, token]
   );
 
+  const fetchPushStatus = useCallback(async () => {
+    const supported =
+      "serviceWorker" in navigator &&
+      "PushManager" in window &&
+      "Notification" in window;
+
+    if (!supported || !token) {
+      setPushState((prev) => ({
+        ...prev,
+        supported,
+        enabled: false,
+        subscribed: false,
+        permission: typeof Notification !== "undefined" ? Notification.permission : "default",
+      }));
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${BASE_URL}/api/users/push/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setPushState((prev) => ({
+        ...prev,
+        supported,
+        enabled: Boolean(res.data?.enabled),
+        subscribed: Boolean(res.data?.subscribed),
+        permission: Notification.permission,
+      }));
+    } catch {
+      setPushState((prev) => ({
+        ...prev,
+        supported,
+        permission: Notification.permission,
+      }));
+    }
+  }, [BASE_URL, token]);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
@@ -263,6 +315,10 @@ export default function Topbar({ openSidebar }) {
     const interval = setInterval(() => fetchNotifications({ resetOnUnauthorized: false }), 15000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
+
+  useEffect(() => {
+    fetchPushStatus();
+  }, [fetchPushStatus]);
 
   useEffect(() => {
     const handleFocusRefresh = () => {
@@ -334,6 +390,68 @@ export default function Topbar({ openSidebar }) {
     }
 
     setShowNotif((prev) => !prev);
+  };
+
+  const handleEnablePushNotifications = async () => {
+    const supported =
+      "serviceWorker" in navigator &&
+      "PushManager" in window &&
+      "Notification" in window;
+
+    if (!supported) {
+      toast.error("This device/browser does not support web push notifications");
+      return;
+    }
+
+    try {
+      setPushState((prev) => ({ ...prev, loading: true }));
+
+      const permission = await Notification.requestPermission();
+      setPushState((prev) => ({ ...prev, permission }));
+      if (permission !== "granted") {
+        toast.error("Notification permission was not allowed");
+        return;
+      }
+
+      const keyRes = await axios.get(`${BASE_URL}/api/users/push/public-key`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!keyRes.data?.enabled || !keyRes.data?.publicKey) {
+        toast.error("Push notifications are not configured on the server yet");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyRes.data.publicKey),
+        });
+      }
+
+      await axios.post(
+        `${BASE_URL}/api/users/push/subscribe`,
+        { subscription },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setPushState((prev) => ({
+        ...prev,
+        supported: true,
+        enabled: true,
+        subscribed: true,
+        permission: "granted",
+      }));
+
+      toast.success("Mobile push notifications enabled");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Unable to enable mobile notifications");
+    } finally {
+      setPushState((prev) => ({ ...prev, loading: false }));
+    }
   };
 
   const markAsRead = async (id) => {
@@ -467,6 +585,17 @@ export default function Topbar({ openSidebar }) {
         boxShadow: "0 6px 20px rgba(15,23,42,0.04)",
       }
     : barStyle;
+  const showEnablePushButton =
+    pushState.supported && pushState.enabled && !pushState.subscribed;
+  const pushStatusMessage = !pushState.supported
+    ? "This device/browser does not support phone notifications."
+    : !pushState.enabled
+      ? "Server push setup is still pending."
+      : pushState.subscribed
+        ? "Phone notifications are enabled on this device."
+        : pushState.permission === "denied"
+          ? "Notifications are blocked in browser settings. Enable them there first."
+          : "Enable phone notifications to receive reminders on the mobile screen.";
 
   return (
     <div style={mobileBarStyle}>
@@ -502,6 +631,17 @@ export default function Topbar({ openSidebar }) {
                   <p style={styles.dropdownSub}>
                     Action-first reminders only. Open the lead directly from here.
                   </p>
+                  <p style={styles.pushHint}>{pushStatusMessage}</p>
+                  {showEnablePushButton && (
+                    <button
+                      type="button"
+                      onClick={handleEnablePushNotifications}
+                      style={styles.pushButton}
+                      disabled={pushState.loading}
+                    >
+                      {pushState.loading ? "Enabling..." : "Enable phone notifications"}
+                    </button>
+                  )}
                 </div>
                 <div style={styles.dropdownCount}>{scheduledCount || 0}</div>
               </div>
@@ -933,5 +1073,23 @@ const styles = {
     fontSize: 12,
     fontWeight: 800,
     cursor: "pointer",
+  },
+  pushButton: {
+    marginTop: 10,
+    border: "1px solid #bfdbfe",
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    borderRadius: 12,
+    padding: "9px 12px",
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+  pushHint: {
+    margin: "8px 0 0",
+    fontSize: 11,
+    color: "#475569",
+    lineHeight: 1.5,
+    maxWidth: 260,
   },
 };

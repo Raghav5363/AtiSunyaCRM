@@ -2,6 +2,12 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
+const {
+  getPublicKey,
+  isPushConfigured,
+  subscribeUser,
+  unsubscribeUser,
+} = require("../utils/pushNotifications");
 
 const router = express.Router();
 
@@ -54,6 +60,49 @@ router.post("/", protect, allowRoles("admin"), async (req, res) => {
 router.get("/", protect, allowRoles("admin"), async (req, res) => {
   const users = await User.find({}, { password: 0 });
   res.json(users);
+});
+
+router.get("/push/public-key", protect, async (req, res) => {
+  res.json({
+    publicKey: getPublicKey(),
+    enabled: isPushConfigured(),
+  });
+});
+
+router.get("/push/status", protect, async (req, res) => {
+  const user = await User.findById(req.user.id).select("pushSubscriptions");
+  res.json({
+    enabled: isPushConfigured(),
+    subscribed: Boolean(user?.pushSubscriptions?.length),
+    count: user?.pushSubscriptions?.length || 0,
+  });
+});
+
+router.post("/push/subscribe", protect, async (req, res) => {
+  try {
+    if (!isPushConfigured()) {
+      return res.status(400).json({ message: "Push notifications are not configured yet" });
+    }
+
+    const count = await subscribeUser(
+      req.user.id,
+      req.body?.subscription,
+      req.headers["user-agent"] || ""
+    );
+
+    res.json({ message: "Push notifications enabled", count });
+  } catch (error) {
+    res.status(400).json({ message: error.message || "Failed to save push subscription" });
+  }
+});
+
+router.post("/push/unsubscribe", protect, async (req, res) => {
+  try {
+    const count = await unsubscribeUser(req.user.id, req.body?.endpoint);
+    res.json({ message: "Push notifications disabled", count });
+  } catch (error) {
+    res.status(400).json({ message: error.message || "Failed to remove push subscription" });
+  }
 });
 
 /* =========================

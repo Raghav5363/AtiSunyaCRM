@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server.js",
     "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "generate:vapid": "node -e \"const webpush=require('web-push'); console.log(webpush.generateVAPIDKeys())\"",
     "test": "echo \"No backend tests configured\""
   },
   "keywords": [],
@@ -30,6 +31,7 @@
     "node-cron": "^4.2.1",
     "recharts": "^2.6.2",
     "socket.io": "^4.8.3",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   }
 }

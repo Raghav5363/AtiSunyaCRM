@@ -1,5 +1,6 @@
 const cron = require("node-cron");
 const Lead = require("../models/lead");
+const { sendPushToUser } = require("./pushNotifications");
 
 let reminderTask = null;
 
@@ -51,6 +52,23 @@ const startReminderCron = () => {
             } else {
               global.io.emit("new_notification", payload);
             }
+          }
+
+          if (lead.assignedTo) {
+            await sendPushToUser(lead.assignedTo.toString(), {
+              title: `${lead.name || "Lead"} reminder`,
+              body: lead.notes || "Follow-up reminder needs attention.",
+              tag: `lead-reminder-${lead._id}`,
+              url: `/lead/${lead._id}`,
+              icon: "/app-icon-192.png",
+              badge: "/app-icon-192.png",
+              data: {
+                leadId: lead._id.toString(),
+                reminderDate: effectiveReminderDate,
+                purpose: lead.purpose || "followup",
+                status: lead.status || "new",
+              },
+            });
           }
 
           bulkOps.push({

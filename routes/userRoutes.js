@@ -5,6 +5,7 @@ const { protect, allowRoles } = require("../middleware/authMiddleware");
 const {
   getPublicKey,
   isPushConfigured,
+  sendPushToUser,
   subscribeUser,
   unsubscribeUser,
 } = require("../utils/pushNotifications");
@@ -93,6 +94,38 @@ router.post("/push/subscribe", protect, async (req, res) => {
     res.json({ message: "Push notifications enabled", count });
   } catch (error) {
     res.status(400).json({ message: error.message || "Failed to save push subscription" });
+  }
+});
+
+router.post("/push/test", protect, async (req, res) => {
+  try {
+    if (!isPushConfigured()) {
+      return res.status(400).json({ message: "Push notifications are not configured yet" });
+    }
+
+    const user = await User.findById(req.user.id).select("email pushSubscriptions");
+    if (!user?.pushSubscriptions?.length) {
+      return res.status(400).json({ message: "No subscribed device found for this user" });
+    }
+
+    const result = await sendPushToUser(req.user.id, {
+      title: "AtiSunya CRM",
+      body: "Phone notifications are active. Tap to open your dashboard.",
+      tag: `crm-test-${Date.now()}`,
+      url: "/dashboard",
+      icon: "/app-icon-192.png",
+      badge: "/app-icon-192.png",
+      data: {
+        type: "test",
+      },
+    });
+
+    res.json({
+      message: "Test push sent",
+      ...result,
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message || "Failed to send test push" });
   }
 });
 

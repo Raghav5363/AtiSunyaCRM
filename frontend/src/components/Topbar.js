@@ -438,6 +438,12 @@ export default function Topbar({ openSidebar }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      await axios.post(
+        `${BASE_URL}/api/users/push/test`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
       setPushState((prev) => ({
         ...prev,
         supported: true,
@@ -446,9 +452,25 @@ export default function Topbar({ openSidebar }) {
         permission: "granted",
       }));
 
-      toast.success("Mobile push notifications enabled");
+      toast.success("Mobile push notifications enabled. A test notification was sent.");
     } catch (error) {
       toast.error(error?.response?.data?.message || "Unable to enable mobile notifications");
+    } finally {
+      setPushState((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    try {
+      setPushState((prev) => ({ ...prev, loading: true }));
+      await axios.post(
+        `${BASE_URL}/api/users/push/test`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success("Test notification sent");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to send test notification");
     } finally {
       setPushState((prev) => ({ ...prev, loading: false }));
     }
@@ -632,19 +654,29 @@ export default function Topbar({ openSidebar }) {
                     Action-first reminders only. Open the lead directly from here.
                   </p>
                   <p style={styles.pushHint}>{pushStatusMessage}</p>
-                  {showEnablePushButton && (
-                    <button
-                      type="button"
+                    {showEnablePushButton && (
+                      <button
+                        type="button"
                       onClick={handleEnablePushNotifications}
                       style={styles.pushButton}
                       disabled={pushState.loading}
-                    >
-                      {pushState.loading ? "Enabling..." : "Enable phone notifications"}
-                    </button>
-                  )}
+                      >
+                        {pushState.loading ? "Enabling..." : "Enable phone notifications"}
+                      </button>
+                    )}
+                    {pushState.subscribed && (
+                      <button
+                        type="button"
+                        onClick={handleSendTestNotification}
+                        style={styles.pushSecondaryButton}
+                        disabled={pushState.loading}
+                      >
+                        {pushState.loading ? "Sending..." : "Send test notification"}
+                      </button>
+                    )}
+                  </div>
+                  <div style={styles.dropdownCount}>{scheduledCount || 0}</div>
                 </div>
-                <div style={styles.dropdownCount}>{scheduledCount || 0}</div>
-              </div>
 
               <div style={styles.summaryRow}>
                 {summaryCards.map((card) => (
@@ -1079,6 +1111,17 @@ const styles = {
     border: "1px solid #bfdbfe",
     background: "#eff6ff",
     color: "#1d4ed8",
+    borderRadius: 12,
+    padding: "9px 12px",
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+  pushSecondaryButton: {
+    marginTop: 8,
+    border: "1px solid #cbd5e1",
+    background: "#ffffff",
+    color: "#0f172a",
     borderRadius: 12,
     padding: "9px 12px",
     fontSize: 12,

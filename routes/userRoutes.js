@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const User = require("../models/user");
+const Lead = require("../models/lead");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
 const {
   getPublicKey,
@@ -108,15 +109,34 @@ router.post("/push/test", protect, async (req, res) => {
       return res.status(400).json({ message: "No subscribed device found for this user" });
     }
 
+    const sampleLead = await Lead.findOne({
+      isDeleted: false,
+      assignedTo: req.user.id,
+      $or: [{ reminderDate: { $ne: null } }, { nextFollowUpDate: { $ne: null } }],
+    })
+      .sort({ reminderDate: 1, nextFollowUpDate: 1, updatedAt: -1 })
+      .select("_id name notes purpose status reminderDate nextFollowUpDate")
+      .lean();
+
+    const effectiveReminderDate =
+      sampleLead?.reminderDate || sampleLead?.nextFollowUpDate || new Date();
+    const leadName = sampleLead?.name || "Sample Lead";
+    const leadNotes = sampleLead?.notes || "Follow-up reminder needs attention.";
+    const leadId = sampleLead?._id?.toString() || "";
+
     const result = await sendPushToUser(req.user.id, {
-      title: "AtiSunya CRM",
-      body: "Phone notifications are active. Tap to open your dashboard.",
-      tag: `crm-test-${Date.now()}`,
-      url: "/dashboard",
+      title: `${leadName} reminder`,
+      body: leadNotes,
+      tag: leadId ? `lead-reminder-${leadId}` : `crm-test-${Date.now()}`,
+      url: leadId ? `/lead/${leadId}` : "/dashboard",
       icon: "/app-icon-192.png",
       badge: "/app-icon-192.png",
       data: {
-        type: "test",
+        type: "lead-reminder-preview",
+        leadId,
+        reminderDate: effectiveReminderDate,
+        purpose: sampleLead?.purpose || "followup",
+        status: sampleLead?.status || "new",
       },
     });
 

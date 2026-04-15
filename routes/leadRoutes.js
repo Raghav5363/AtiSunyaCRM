@@ -4,9 +4,10 @@ const express = require("express");
 const mongoose = require("mongoose");
 const Lead = require("../models/lead");
 const Activity = require("../models/activity");
+const Notification = require("../models/notification");
 const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
-const { sendPushToCurrentDevice } = require("../utils/pushNotifications");
+const { sendPushToCurrentDevice, sendPushToUser } = require("../utils/pushNotifications");
 
 const multer = require("multer");
 const csv = require("csv-parser");
@@ -270,13 +271,15 @@ function getReminderState(reminderDateValue, now = new Date()) {
 }
 
 function getNotificationPriority(item) {
+  if (item?.notificationType === "lead_assigned" && item?.isAlertActive) return 0;
   if (item?.isAlertActive && item?.reminderState === "overdue") return 0;
   if (item?.isAlertActive && item?.reminderState === "today") return 1;
-  if (item?.reminderState === "overdue") return 2;
-  if (item?.isAlertActive) return 3;
-  if (item?.reminderState === "today") return 4;
-  if (item?.reminderState === "upcoming") return 5;
-  return 6;
+  if (item?.notificationType === "lead_assigned") return 2;
+  if (item?.reminderState === "overdue") return 3;
+  if (item?.isAlertActive) return 4;
+  if (item?.reminderState === "today") return 5;
+  if (item?.reminderState === "upcoming") return 6;
+  return 7;
 }
 
 async function applyLeadScope(req, filter = {}) {
@@ -360,6 +363,140 @@ function buildLeadPayload(body, currentUserId, { isNew = false } = {}) {
   return payload;
 }
 
+function getActorRoleLabel(role) {
+  if (role === "admin") return "Admin";
+  if (role === "sales_manager") return "Manager";
+  if (role === "sales_agent") return "Agent";
+  return "Team";
+}
+
+async function notifyLeadAssignment(lead, { actorUserId = "", actorRole = "", previousAssigneeId = "" } = {}) {
+  try {
+    const assignedUserId = lead?.assignedTo?._id?.toString?.() || lead?.assignedTo?.toString?.() || "";
+
+    if (!assignedUserId || assignedUserId === actorUserId || assignedUserId === previousAssigneeId) {
+      return;
+    }
+
+    const leadId = lead?._id?.toString?.() || "";
+    if (!leadId) {
+      return;
+    }
+
+    const actorLabel = getActorRoleLabel(actorRole);
+    const title = `${lead?.name || "Lead"} assigned to you`;
+    const body = `${actorLabel} assigned a lead to you. Open it to continue the follow-up.`;
+    const routeTarget = `/lead/${leadId}`;
+    const notification = await Notification.create({
+      userId: assignedUserId,
+      leadId,
+      type: "lead_assigned",
+      title,
+      body,
+      routeTarget,
+      status: lead?.status || "new",
+      purpose: lead?.purpose || "followup",
+      data: {
+        leadId,
+        leadName: lead?.name || "Lead",
+        status: lead?.status || "new",
+        purpose: lead?.purpose || "followup",
+        actorRole: actorRole || "",
+      },
+    });
+
+    const payload = {
+      type: "lead-assigned",
+      notificationId: notification._id.toString(),
+      title,
+      body,
+      tag: `lead-assignment-${leadId}`,
+      url: routeTarget,
+      channelId: "crm-reminders",
+      clickAction: "OPEN_CRM_REMINDER",
+      icon: "/app-icon-192.png",
+      badge: "/app-icon-192.png",
+      data: {
+        type: "lead-assigned",
+        notificationId: notification._id.toString(),
+        leadId,
+        leadName: lead?.name || "Lead",
+        status: lead?.status || "new",
+        purpose: lead?.purpose || "followup",
+      },
+    };
+
+    if (global.io) {
+      global.io.to(assignedUserId).emit("new_notification", payload);
+    }
+
+    await sendPushToUser(assignedUserId, payload);
+  } catch (error) {
+    console.log("Lead assignment notification error:", error?.message || error);
+  }
+}
+
+function buildReminderNotificationItem(lead, now, summary) {
+  const effectiveReminderDate = getEffectiveReminderDate(lead);
+  const reminderState = getReminderState(effectiveReminderDate, now);
+
+  if (reminderState.key === "unscheduled") {
+    return null;
+  }
+
+  const isAlertActive = Boolean(lead.reminderSent && !lead.reminderRead);
+  summary.totalScheduled += 1;
+
+  if (reminderState.key === "overdue") {
+    summary.overdue += 1;
+  } else if (reminderState.key === "today") {
+    summary.dueToday += 1;
+  } else if (reminderState.key === "upcoming") {
+    summary.upcoming += 1;
+  }
+
+  if (isAlertActive) {
+    summary.unread += 1;
+  }
+
+  if (isAlertActive || reminderState.key === "overdue" || reminderState.key === "today") {
+    summary.important += 1;
+  }
+
+  return {
+    ...lead,
+    leadId: lead._id.toString(),
+    notificationType: "reminder",
+    routeTarget: `/lead/${lead._id}`,
+    reminderDate: effectiveReminderDate,
+    reminderState: reminderState.key,
+    reminderStateLabel: reminderState.label,
+    isAlertActive,
+  };
+}
+
+function buildAssignmentNotificationItem(notification) {
+  return {
+    _id: notification._id.toString(),
+    leadId: notification?.leadId?.toString?.() || notification?.data?.leadId || "",
+    notificationType: notification.type,
+    routeTarget:
+      notification.routeTarget ||
+      (notification?.leadId ? `/lead/${notification.leadId.toString()}` : "/dashboard"),
+    title: notification.title || "Lead assigned",
+    name: notification?.data?.leadName || "Lead",
+    purpose: notification.purpose || notification?.data?.purpose || "followup",
+    status: notification.status || notification?.data?.status || "new",
+    notes: notification.body || "",
+    body: notification.body || "",
+    reminderDate: notification.reminderDate || null,
+    reminderState: "unscheduled",
+    reminderStateLabel: "Assigned",
+    isAlertActive: !notification.isRead,
+    createdAt: notification.createdAt,
+  };
+}
+
 const upload = multer({
   dest: path.join(__dirname, "../uploads"),
 });
@@ -375,10 +512,18 @@ router.get("/notifications", protect, async (req, res) => {
     });
 
     const now = new Date();
-
-    const notifications = await Lead.find(filter)
-      .select("name reminderDate nextFollowUpDate purpose status notes assignedTo reminderSent reminderRead")
-      .lean();
+    const [reminderNotifications, assignmentNotifications] = await Promise.all([
+      Lead.find(filter)
+        .select("name reminderDate nextFollowUpDate purpose status notes assignedTo reminderSent reminderRead")
+        .lean(),
+      Notification.find({
+        userId: req.user.id,
+        type: "lead_assigned",
+      })
+        .sort({ createdAt: -1 })
+        .limit(25)
+        .lean(),
+    ]);
 
     const summary = {
       overdue: 0,
@@ -389,44 +534,15 @@ router.get("/notifications", protect, async (req, res) => {
       important: 0,
     };
 
-    const items = notifications
-      .map((lead) => {
-        const effectiveReminderDate = getEffectiveReminderDate(lead);
-        const reminderState = getReminderState(effectiveReminderDate, now);
+    const reminderItems = reminderNotifications
+      .map((lead) => buildReminderNotificationItem(lead, now, summary))
+      .filter(Boolean);
+    const assignmentItems = assignmentNotifications.map((notification) =>
+      buildAssignmentNotificationItem(notification)
+    );
+    const assignmentUnreadCount = assignmentItems.filter((item) => item.isAlertActive).length;
 
-        if (reminderState.key === "unscheduled") {
-          return null;
-        }
-
-        const isAlertActive = Boolean(lead.reminderSent && !lead.reminderRead);
-
-        summary.totalScheduled += 1;
-
-        if (reminderState.key === "overdue") {
-          summary.overdue += 1;
-        } else if (reminderState.key === "today") {
-          summary.dueToday += 1;
-        } else if (reminderState.key === "upcoming") {
-          summary.upcoming += 1;
-        }
-
-        if (isAlertActive) {
-          summary.unread += 1;
-        }
-
-        if (isAlertActive || reminderState.key === "overdue" || reminderState.key === "today") {
-          summary.important += 1;
-        }
-
-        return {
-          ...lead,
-          reminderDate: effectiveReminderDate,
-          reminderState: reminderState.key,
-          reminderStateLabel: reminderState.label,
-          isAlertActive,
-        };
-      })
-      .filter(Boolean)
+    const items = [...assignmentItems, ...reminderItems]
       .sort((left, right) => {
         const leftPriority = getNotificationPriority(left);
         const rightPriority = getNotificationPriority(right);
@@ -435,14 +551,27 @@ router.get("/notifications", protect, async (req, res) => {
           return leftPriority - rightPriority;
         }
 
+        if (
+          left.notificationType === "lead_assigned" ||
+          right.notificationType === "lead_assigned"
+        ) {
+          return new Date(right.createdAt || 0) - new Date(left.createdAt || 0);
+        }
+
         return new Date(left.reminderDate) - new Date(right.reminderDate);
       });
+    const unreadCount = summary.unread + assignmentUnreadCount;
 
     res.json({
-      count: summary.unread,
-      unreadCount: summary.unread,
-      scheduledCount: summary.totalScheduled,
-      summary,
+      count: unreadCount,
+      unreadCount,
+      scheduledCount: items.length,
+      summary: {
+        ...summary,
+        unread: unreadCount,
+        assignmentUnread: assignmentUnreadCount,
+        assignmentCount: assignmentItems.length,
+      },
       data: items,
     });
   } catch (err) {
@@ -792,6 +921,21 @@ router.put("/notifications/:id/read", protect, async (req, res) => {
       return res.status(400).json({ message: "Invalid notification ID" });
     }
 
+    const systemNotification = await Notification.findOne({
+      _id: req.params.id,
+      userId: req.user.id,
+    });
+
+    if (systemNotification) {
+      if (!systemNotification.isRead) {
+        systemNotification.isRead = true;
+        systemNotification.readAt = new Date();
+        await systemNotification.save();
+      }
+
+      return res.json({ message: "Notification marked as read" });
+    }
+
     const filter = await applyLeadScope(req, {
       _id: new mongoose.Types.ObjectId(req.params.id),
       isDeleted: false,
@@ -970,6 +1114,11 @@ router.post(
         .populate("assignedTo", "email role")
         .populate("createdBy", "email role");
 
+      await notifyLeadAssignment(populated, {
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+      });
+
       res.status(201).json(populated);
     } catch (err) {
       console.log("CREATE LEAD ERROR:", err);
@@ -1109,6 +1258,7 @@ router.put(
         return res.status(400).json({ message: "Invalid Lead ID" });
       }
 
+      const existingLead = await Lead.findById(req.params.id).select("assignedTo");
       const payload = buildLeadPayload(req.body, req.user.id);
 
       if (payload.email && !isValidEmail(payload.email)) {
@@ -1129,6 +1279,12 @@ router.put(
       if (!updated) {
         return res.status(404).json({ message: "Lead not found" });
       }
+
+      await notifyLeadAssignment(updated, {
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+        previousAssigneeId: existingLead?.assignedTo?.toString?.() || "",
+      });
 
       res.json(updated);
     } catch (err) {

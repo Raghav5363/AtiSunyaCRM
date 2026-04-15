@@ -96,6 +96,53 @@ function getReminderTag(item) {
   return { label: "Upcoming", color: "#1d4ed8", background: "#dbeafe" };
 }
 
+function getNotificationTag(item) {
+  if (item?.notificationType === "lead_assigned") {
+    return { label: "Assigned", color: "#7c3aed", background: "#ede9fe" };
+  }
+
+  return getReminderTag(item);
+}
+
+function getNotificationTitle(item) {
+  if (item?.notificationType === "lead_assigned") {
+    return item?.title || `${item?.name || "Lead"} assigned`;
+  }
+
+  return item?.name || "Lead";
+}
+
+function getNotificationMetaText(item) {
+  if (item?.notificationType === "lead_assigned") {
+    return "New lead assignment";
+  }
+
+  return (item?.purpose || "followup").replace(/_/g, " ");
+}
+
+function getNotificationTimeText(item) {
+  if (item?.notificationType === "lead_assigned") {
+    return `Assigned ${formatReminderDate(item?.createdAt)}`;
+  }
+
+  return `Due ${formatReminderDate(item?.reminderDate)}`;
+}
+
+function getNotificationNotes(item) {
+  if (item?.notificationType === "lead_assigned") {
+    return item?.body || item?.notes || "A new lead was assigned to you.";
+  }
+
+  return item?.notes ? item.notes.trim() : "No notes added";
+}
+
+function isReminderPushCandidate(item) {
+  return Boolean(
+    item?.notificationType !== "lead_assigned" &&
+      (item?.isAlertActive || item?.reminderState === "overdue" || item?.reminderState === "today")
+  );
+}
+
 function getReminderStateFromDate(value) {
   if (!value) return "unscheduled";
 
@@ -127,6 +174,8 @@ function createEmptyNotifications() {
       upcoming: 0,
       totalScheduled: 0,
       unread: 0,
+      assignmentCount: 0,
+      assignmentUnread: 0,
     },
     data: [],
   };
@@ -274,22 +323,33 @@ export default function Topbar({ openSidebar }) {
         const rawData = Array.isArray(res.data?.data) ? res.data.data : [];
         const nextData = rawData.map((item) => ({
           ...item,
+          notificationType: item?.notificationType || "reminder",
           reminderState: item?.reminderState || getReminderStateFromDate(item?.reminderDate),
         }));
         const recalculatedSummary = nextData.reduce(
           (acc, item) => {
-            acc.totalScheduled += 1;
+            acc.totalItems += 1;
 
-            if (item.reminderState === "today") {
-              acc.dueToday += 1;
-            } else if (item.reminderState === "upcoming") {
-              acc.upcoming += 1;
-            } else if (item.reminderState === "overdue") {
-              acc.overdue += 1;
+            if (item.notificationType === "lead_assigned") {
+              acc.assignmentCount += 1;
+            } else {
+              acc.totalScheduled += 1;
+
+              if (item.reminderState === "today") {
+                acc.dueToday += 1;
+              } else if (item.reminderState === "upcoming") {
+                acc.upcoming += 1;
+              } else if (item.reminderState === "overdue") {
+                acc.overdue += 1;
+              }
             }
 
             if (item.isAlertActive) {
               acc.unread += 1;
+
+              if (item.notificationType === "lead_assigned") {
+                acc.assignmentUnread += 1;
+              }
             }
 
             return acc;
@@ -300,6 +360,9 @@ export default function Topbar({ openSidebar }) {
             upcoming: 0,
             totalScheduled: 0,
             unread: 0,
+            assignmentCount: 0,
+            assignmentUnread: 0,
+            totalItems: 0,
           }
         );
         const activeAlertItems = nextData.filter((item) => item?.isAlertActive && item?._id);
@@ -307,9 +370,14 @@ export default function Topbar({ openSidebar }) {
 
         activeAlertItems.forEach((item) => {
           if (!seenIds.has(item._id)) {
-            toast.info(`${item?.name || "Lead"} reminder needs attention`, {
+            toast.info(
+              item?.notificationType === "lead_assigned"
+                ? item?.body || item?.title || "A new lead was assigned to you"
+                : `${item?.name || "Lead"} reminder needs attention`,
+              {
               autoClose: 3000,
-            });
+              }
+            );
 
             playNotificationTone();
 
@@ -325,7 +393,7 @@ export default function Topbar({ openSidebar }) {
         setNotifications({
           count: recalculatedSummary.unread,
           unreadCount: recalculatedSummary.unread,
-          scheduledCount: recalculatedSummary.totalScheduled,
+          scheduledCount: recalculatedSummary.totalItems,
           summary: {
             ...summary,
             ...recalculatedSummary,
@@ -639,11 +707,7 @@ export default function Topbar({ openSidebar }) {
       }
 
       const importantItems = items.filter(
-        (item) =>
-          item?._id &&
-          (item?.isAlertActive ||
-            item?.reminderState === "overdue" ||
-            item?.reminderState === "today")
+        (item) => item?._id && isReminderPushCandidate(item)
       );
 
       if (!importantItems.length) {
@@ -745,6 +809,13 @@ export default function Topbar({ openSidebar }) {
               return;
             }
 
+            const incomingId =
+              notification?.data?.notificationId || notification?.data?.leadId || "";
+            if (incomingId) {
+              notifiedAlertIdsRef.current.add(incomingId);
+            }
+
+            fetchNotifications({ resetOnUnauthorized: false });
             toast.info(
               notification?.body || `${notification?.title || "AtiSunya CRM"} notification received`
             );
@@ -759,6 +830,7 @@ export default function Topbar({ openSidebar }) {
               return;
             }
 
+            fetchNotifications({ resetOnUnauthorized: false });
             const target = resolveNotificationTarget(action?.notification?.data || {});
             setShowNotif(false);
             navigate(target);
@@ -807,6 +879,7 @@ export default function Topbar({ openSidebar }) {
       });
     };
   }, [
+    fetchNotifications,
     fetchPushStatus,
     navigate,
     pushDeviceCopy.currentDeviceLabel,
@@ -833,6 +906,17 @@ export default function Topbar({ openSidebar }) {
     });
 
     socket.on("new_notification", (data) => {
+      if (data?.type === "lead-assigned") {
+        if (data?.notificationId) {
+          notifiedAlertIdsRef.current.add(data.notificationId);
+        }
+
+        toast.info(data?.body || `${data?.title || "Lead"} notification received`, {
+          autoClose: 3500,
+        });
+        playNotificationTone();
+      }
+
       fetchNotifications({ resetOnUnauthorized: false });
     });
 
@@ -1021,10 +1105,7 @@ export default function Topbar({ openSidebar }) {
       setPushState((prev) => ({ ...prev, loading: true }));
 
       const importantItems = (notifications.data || []).filter(
-        (item) =>
-          item?.isAlertActive ||
-          item?.reminderState === "overdue" ||
-          item?.reminderState === "today"
+        (item) => isReminderPushCandidate(item)
       );
 
       if (pushState.subscribed && importantItems.length) {
@@ -1065,7 +1146,9 @@ export default function Topbar({ openSidebar }) {
         summary: nextSummary,
         data: Array.isArray(prev.data)
           ? prev.data.map((item) =>
-              item._id === id ? { ...item, isAlertActive: false, reminderRead: true } : item
+              item._id === id
+                ? { ...item, isAlertActive: false, reminderRead: true, isRead: true }
+                : item
             )
           : [],
       };
@@ -1095,7 +1178,7 @@ export default function Topbar({ openSidebar }) {
     }
 
     setShowNotif(false);
-    navigate(`/lead/${item._id}`);
+    navigate(item.routeTarget || (item.leadId ? `/lead/${item.leadId}` : `/lead/${item._id}`));
   };
 
   const pageTitles = {
@@ -1173,7 +1256,9 @@ export default function Topbar({ openSidebar }) {
     activeReminderFilter === "all"
       ? notifications.data
       : notifications.data.filter(
-          (item) => getReminderStateFromDate(item.reminderDate) === activeReminderFilter
+          (item) =>
+            item?.notificationType !== "lead_assigned" &&
+            getReminderStateFromDate(item.reminderDate) === activeReminderFilter
         );
 
   const barStyle = styles.bar;
@@ -1199,10 +1284,7 @@ export default function Topbar({ openSidebar }) {
     pushState.anyDeviceSubscribed && !pushState.subscribed && pushState.deviceCount > 0;
   const showDesktopSyncButton = !isMobile && pushState.subscribed && pushState.enabled;
   const importantNotificationCount = (notifications.data || []).filter(
-    (item) =>
-      item?.isAlertActive ||
-      item?.reminderState === "overdue" ||
-      item?.reminderState === "today"
+    (item) => isReminderPushCandidate(item)
   ).length;
   const otherDeviceHintMessage = `Another device on this account is already enabled. ${pushDeviceCopy.currentDeviceLabelTitle} still needs its own enable step.`;
   const pushStatusMessage = pushState.isNativeApp
@@ -1276,9 +1358,9 @@ export default function Topbar({ openSidebar }) {
             <div style={isMobile ? styles.mobileDropdown : styles.dropdown}>
               <div style={styles.dropdownHeader}>
                 <div>
-                  <h4 style={styles.dropdownTitle}>Reminder Center</h4>
+                  <h4 style={styles.dropdownTitle}>Notification Center</h4>
                   <p style={styles.dropdownSub}>
-                    Action-first reminders only. Open the lead directly from here.
+                    Action-first alerts. Open the lead directly from here.
                   </p>
                   <p style={styles.pushHint}>{pushStatusMessage}</p>
                   {showOtherDeviceHint && (
@@ -1355,14 +1437,14 @@ export default function Topbar({ openSidebar }) {
                   <FiCalendar />
                     <span>
                     {activeReminderFilter === "all"
-                      ? "No scheduled reminders right now."
+                      ? "No notifications right now."
                       : `No ${activeReminderFilter} reminders right now.`}
                   </span>
                 </div>
               ) : (
                 <>
                   {filteredNotifications.map((item) => {
-                    const tag = getReminderTag(item);
+                    const tag = getNotificationTag(item);
                     const showLiveAlert = Boolean(item.isAlertActive);
 
                     return (
@@ -1374,11 +1456,11 @@ export default function Topbar({ openSidebar }) {
                           ...(showLiveAlert ? styles.notificationItemAlert : null),
                         }}
                         type="button"
-                        aria-label={`Open ${item.name || "lead"} reminder`}
+                        aria-label={`Open ${getNotificationTitle(item)}`}
                       >
                         <div style={styles.notificationTop}>
                           <div>
-                            <div style={styles.notificationTitle}>{item.name || "Lead"}</div>
+                            <div style={styles.notificationTitle}>{getNotificationTitle(item)}</div>
                             {showLiveAlert && (
                               <div style={styles.alertRow}>
                                 <FiAlertCircle />
@@ -1411,16 +1493,16 @@ export default function Topbar({ openSidebar }) {
 
                         <div style={styles.notificationMetaRow}>
                           <span style={styles.notificationMeta}>
-                            {(item.purpose || "followup").replace(/_/g, " ")}
+                            {getNotificationMetaText(item)}
                           </span>
                           <span style={styles.notificationTime}>
-                            Due {formatReminderDate(item.reminderDate)}
+                            {getNotificationTimeText(item)}
                           </span>
                         </div>
 
                         <div style={styles.notificationFooter}>
                           <div style={styles.notificationNotes}>
-                            {item.notes ? item.notes.trim() : "No notes added"}
+                            {getNotificationNotes(item)}
                           </div>
                           <div style={styles.notificationLink}>
                             <span>Open lead</span>

@@ -1,9 +1,20 @@
 const cron = require("node-cron");
 const Lead = require("../models/lead");
+const User = require("../models/user");
 const { sendPushToUser } = require("./pushNotifications");
 
 let reminderTask = null;
 const reminderSchedule = process.env.REMINDER_CRON_SCHEDULE || "*/5 * * * * *";
+
+function getReminderRecipientIds(lead, adminIds = []) {
+  const recipientIds = new Set(adminIds);
+
+  if (lead?.assignedTo) {
+    recipientIds.add(lead.assignedTo.toString());
+  }
+
+  return Array.from(recipientIds).filter(Boolean);
+}
 
 const startReminderCron = () => {
   if (reminderTask) {
@@ -15,6 +26,8 @@ const startReminderCron = () => {
     async () => {
       try {
         const now = new Date();
+        const adminUsers = await User.find({ role: "admin" }).select("_id").lean();
+        const adminIds = adminUsers.map((user) => user._id.toString());
 
         const leads = await Lead.find({
           reminderSent: false,
@@ -38,6 +51,7 @@ const startReminderCron = () => {
 
         for (const lead of leads) {
           const effectiveReminderDate = lead.reminderDate || lead.nextFollowUpDate || null;
+          const recipientIds = getReminderRecipientIds(lead, adminIds);
           const payload = {
             _id: lead._id.toString(),
             name: lead.name || "Lead",
@@ -46,40 +60,50 @@ const startReminderCron = () => {
             notes: lead.notes || "",
             reminderDate: effectiveReminderDate,
           };
-          const userRoomId = lead.assignedTo ? lead.assignedTo.toString() : "";
           const connectedSocketCount = global.io
-            ? userRoomId
-              ? global.io.sockets.adapter.rooms.get(userRoomId)?.size || 0
-              : global.io.sockets.sockets.size || 0
+            ? recipientIds.reduce(
+                (count, recipientId) =>
+                  count + (global.io.sockets.adapter.rooms.get(recipientId)?.size || 0),
+                0
+              )
             : 0;
           const hasLiveSocketListener = connectedSocketCount > 0;
 
-          if (global.io) {
-            if (userRoomId) {
-              global.io.to(userRoomId).emit("new_notification", payload);
-            } else {
-              global.io.emit("new_notification", payload);
-            }
+          if (global.io && recipientIds.length) {
+            recipientIds.forEach((recipientId) => {
+              global.io.to(recipientId).emit("new_notification", payload);
+            });
           }
 
           let pushResult = { sent: 0 };
-          if (lead.assignedTo) {
-            pushResult = await sendPushToUser(lead.assignedTo.toString(), {
-              title: `${lead.name || "Lead"} reminder`,
-              body: lead.notes || "Follow-up reminder needs attention.",
-              tag: `lead-reminder-${lead._id}`,
-              url: `/lead/${lead._id}`,
-              channelId: "crm-reminders",
-              clickAction: "OPEN_CRM_REMINDER",
-              icon: "/app-icon-192.png",
-              badge: "/app-icon-192.png",
-              data: {
-                leadId: lead._id.toString(),
-                reminderDate: effectiveReminderDate,
-                purpose: lead.purpose || "followup",
-                status: lead.status || "new",
-              },
-            });
+          if (recipientIds.length) {
+            const pushResults = await Promise.all(
+              recipientIds.map((recipientId) =>
+                sendPushToUser(recipientId, {
+                  title: `${lead.name || "Lead"} reminder`,
+                  body: lead.notes || "Follow-up reminder needs attention.",
+                  tag: `lead-reminder-${lead._id}`,
+                  url: `/lead/${lead._id}`,
+                  channelId: "crm-reminders",
+                  clickAction: "OPEN_CRM_REMINDER",
+                  icon: "/app-icon-192.png",
+                  badge: "/app-icon-192.png",
+                  data: {
+                    leadId: lead._id.toString(),
+                    reminderDate: effectiveReminderDate,
+                    purpose: lead.purpose || "followup",
+                    status: lead.status || "new",
+                  },
+                })
+              )
+            );
+
+            pushResult = pushResults.reduce(
+              (acc, result) => ({
+                sent: acc.sent + (result?.sent || 0),
+              }),
+              { sent: 0 }
+            );
           }
 
           if (hasLiveSocketListener || pushResult.sent > 0) {

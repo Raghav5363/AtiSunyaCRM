@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import PwaInstallCard from "../components/PwaInstallCard";
 
 export default function MobileIntro() {
   const navigate = useNavigate();
@@ -25,6 +26,10 @@ export default function MobileIntro() {
         <button style={styles.button} onClick={() => navigate("/login")}>
           Get Started →
         </button>
+      </div>
+
+      <div style={styles.installCardWrap}>
+        <PwaInstallCard compact />
       </div>
     </div>
   );
@@ -88,5 +93,10 @@ const styles = {
     cursor: "pointer",
     transition: "0.2s",
     boxShadow: "0 8px 20px rgba(37,99,235,0.25)",
+  },
+  installCardWrap: {
+    width: "100%",
+    maxWidth: "420px",
+    marginTop: "16px",
   },
 };

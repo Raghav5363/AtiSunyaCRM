@@ -90,7 +90,16 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("push", (event) => {
   if (!event.data) return;
 
-  const payload = event.data.json();
+  let payload = {};
+
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = {
+      body: event.data.text(),
+    };
+  }
+
   const title = payload.title || "AtiSunya CRM";
   const options = {
     body: payload.body || "You have a new reminder.",
@@ -98,6 +107,9 @@ self.addEventListener("push", (event) => {
     badge: payload.badge || "/app-icon-192.png",
     tag: payload.tag || "crm-reminder",
     renotify: true,
+    requireInteraction: true,
+    vibrate: [180, 100, 180],
+    timestamp: Date.now(),
     data: payload.data || {},
   };
 
@@ -114,14 +126,18 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const targetUrl = event.notification?.data?.url || "/dashboard";
+  const targetUrl = new URL(event.notification?.data?.url || "/dashboard", self.location.origin).href;
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      const matchingClient = clientList.find((client) => client.url === targetUrl);
+      if (matchingClient && "focus" in matchingClient) {
+        return matchingClient.focus();
+      }
+
       for (const client of clientList) {
         if ("focus" in client) {
-          client.navigate(targetUrl);
-          return client.focus();
+          return client.navigate(targetUrl).then(() => client.focus());
         }
       }
 

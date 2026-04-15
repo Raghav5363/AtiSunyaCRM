@@ -11,6 +11,13 @@ import {
   FiLogOut,
   FiMenu,
 } from "react-icons/fi";
+import MobilePushPrompt from "./MobilePushPrompt";
+import {
+  clearPushPromptDismissal,
+  dismissPushPrompt,
+  getPushEnvironment,
+  shouldSuppressPushPrompt,
+} from "../utils/pushSupport";
 
 function decodeJwtPayload(token) {
   if (!token) return null;
@@ -118,6 +125,24 @@ function createEmptyNotifications() {
   };
 }
 
+function createInitialPushState() {
+  return {
+    supported: false,
+    enabled: false,
+    subscribed: false,
+    anyDeviceSubscribed: false,
+    deviceCount: 0,
+    loading: false,
+    permission: "default",
+    secureContext: false,
+    needsInstall: false,
+    isIOS: false,
+    isAndroid: false,
+    isNativeApp: false,
+    canUseWebPush: false,
+  };
+}
+
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const safeBase64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -157,18 +182,14 @@ export default function Topbar({ openSidebar }) {
   const notifRef = useRef(null);
   const socketRef = useRef(null);
   const notifiedAlertIdsRef = useRef(new Set());
+  const syncedPushEndpointsRef = useRef(new Set());
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [notifications, setNotifications] = useState(createEmptyNotifications);
   const [showNotif, setShowNotif] = useState(false);
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [activeReminderFilter, setActiveReminderFilter] = useState("all");
-  const [pushState, setPushState] = useState({
-    supported: false,
-    enabled: false,
-    subscribed: false,
-    loading: false,
-    permission: "default",
-  });
+  const [pushState, setPushState] = useState(createInitialPushState);
 
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
   const token = localStorage.getItem("token");
@@ -266,21 +287,59 @@ export default function Topbar({ openSidebar }) {
     [BASE_URL, token]
   );
 
-  const fetchPushStatus = useCallback(async () => {
-    const supported =
-      "serviceWorker" in navigator &&
-      "PushManager" in window &&
-      "Notification" in window;
+  const syncExistingSubscription = useCallback(
+    async (subscription) => {
+      if (!token || !subscription?.endpoint) {
+        return;
+      }
 
-    if (!supported || !token) {
+      if (syncedPushEndpointsRef.current.has(subscription.endpoint)) {
+        return;
+      }
+
+      await axios.post(
+        `${BASE_URL}/api/users/push/subscribe`,
+        { subscription },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      syncedPushEndpointsRef.current.add(subscription.endpoint);
+    },
+    [BASE_URL, token]
+  );
+
+  const fetchPushStatus = useCallback(async () => {
+    const environment = getPushEnvironment();
+    const permission =
+      environment.notificationApiSupported && typeof Notification !== "undefined"
+        ? Notification.permission
+        : "default";
+
+    if (!token) {
       setPushState((prev) => ({
         ...prev,
-        supported,
-        enabled: false,
-        subscribed: false,
-        permission: typeof Notification !== "undefined" ? Notification.permission : "default",
+        ...createInitialPushState(),
+        permission,
+        secureContext: environment.secureContext,
+        needsInstall: environment.needsInstallForIOSPush,
+        isIOS: environment.isIOS,
+        isAndroid: environment.isAndroid,
+        isNativeApp: environment.isNativeApp,
+        canUseWebPush: environment.canUseWebPush,
+        supported: environment.canUseWebPush,
       }));
       return;
+    }
+
+    let localSubscription = null;
+
+    if (environment.canUseWebPush) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        localSubscription = await registration.pushManager.getSubscription();
+      } catch (error) {
+        console.log("Push registration lookup error:", error?.message || error);
+      }
     }
 
     try {
@@ -288,21 +347,46 @@ export default function Topbar({ openSidebar }) {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      if (environment.canUseWebPush && Boolean(res.data?.enabled) && localSubscription) {
+        try {
+          await syncExistingSubscription(localSubscription);
+        } catch (error) {
+          console.log("Push sync error:", error?.response?.data || error?.message || error);
+        }
+      }
+
       setPushState((prev) => ({
         ...prev,
-        supported,
+        supported: environment.canUseWebPush,
         enabled: Boolean(res.data?.enabled),
-        subscribed: Boolean(res.data?.subscribed),
-        permission: Notification.permission,
+        subscribed: Boolean(localSubscription),
+        anyDeviceSubscribed: Boolean(res.data?.subscribed),
+        deviceCount: res.data?.count || 0,
+        permission,
+        secureContext: environment.secureContext,
+        needsInstall: environment.needsInstallForIOSPush,
+        isIOS: environment.isIOS,
+        isAndroid: environment.isAndroid,
+        isNativeApp: environment.isNativeApp,
+        canUseWebPush: environment.canUseWebPush,
       }));
     } catch {
       setPushState((prev) => ({
         ...prev,
-        supported,
-        permission: Notification.permission,
+        supported: environment.canUseWebPush,
+        subscribed: Boolean(localSubscription),
+        anyDeviceSubscribed: false,
+        deviceCount: 0,
+        permission,
+        secureContext: environment.secureContext,
+        needsInstall: environment.needsInstallForIOSPush,
+        isIOS: environment.isIOS,
+        isAndroid: environment.isAndroid,
+        isNativeApp: environment.isNativeApp,
+        canUseWebPush: environment.canUseWebPush,
       }));
     }
-  }, [BASE_URL, token]);
+  }, [BASE_URL, syncExistingSubscription, token]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -324,6 +408,7 @@ export default function Topbar({ openSidebar }) {
     const handleFocusRefresh = () => {
       if (document.visibilityState === "visible") {
         fetchNotifications({ resetOnUnauthorized: false });
+        fetchPushStatus();
       }
     };
 
@@ -334,7 +419,59 @@ export default function Topbar({ openSidebar }) {
       window.removeEventListener("focus", handleFocusRefresh);
       document.removeEventListener("visibilitychange", handleFocusRefresh);
     };
-  }, [fetchNotifications]);
+  }, [fetchNotifications, fetchPushStatus]);
+
+  useEffect(() => {
+    const handleInstalled = () => {
+      fetchPushStatus();
+    };
+
+    window.addEventListener("appinstalled", handleInstalled);
+
+    return () => {
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
+  }, [fetchPushStatus]);
+
+  useEffect(() => {
+    if (!isMobile || !token || showNotif || pushState.loading || shouldSuppressPushPrompt()) {
+      return undefined;
+    }
+
+    const shouldShowPrompt =
+      (pushState.needsInstall || (pushState.enabled && !pushState.subscribed)) &&
+      !pushState.isNativeApp &&
+      pushState.permission !== "denied";
+
+    if (!shouldShowPrompt) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShowPushPrompt(true);
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    isMobile,
+    pushState.enabled,
+    pushState.isNativeApp,
+    pushState.loading,
+    pushState.needsInstall,
+    pushState.permission,
+    pushState.subscribed,
+    showNotif,
+    token,
+  ]);
+
+  useEffect(() => {
+    if (pushState.subscribed) {
+      clearPushPromptDismissal();
+      setShowPushPrompt(false);
+    }
+  }, [pushState.subscribed]);
 
   useEffect(() => {
     if (!token || !user?.id) {
@@ -392,13 +529,21 @@ export default function Topbar({ openSidebar }) {
     setShowNotif((prev) => !prev);
   };
 
-  const handleEnablePushNotifications = async () => {
-    const supported =
-      "serviceWorker" in navigator &&
-      "PushManager" in window &&
-      "Notification" in window;
+  const closePushPrompt = useCallback(() => {
+    dismissPushPrompt();
+    setShowPushPrompt(false);
+  }, []);
 
-    if (!supported) {
+  const handleEnablePushNotifications = async () => {
+    const environment = getPushEnvironment();
+
+    if (environment.needsInstallForIOSPush) {
+      setShowPushPrompt(true);
+      toast.info("Install the CRM on the iPhone home screen first, then enable notifications.");
+      return;
+    }
+
+    if (!environment.canUseWebPush) {
       toast.error("This device/browser does not support web push notifications");
       return;
     }
@@ -438,6 +583,10 @@ export default function Topbar({ openSidebar }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      if (subscription?.endpoint) {
+        syncedPushEndpointsRef.current.add(subscription.endpoint);
+      }
+
       await axios.post(
         `${BASE_URL}/api/users/push/test`,
         {},
@@ -449,9 +598,20 @@ export default function Topbar({ openSidebar }) {
         supported: true,
         enabled: true,
         subscribed: true,
+        anyDeviceSubscribed: true,
+        deviceCount: Math.max(prev.deviceCount || 0, 1),
         permission: "granted",
+        secureContext: environment.secureContext,
+        needsInstall: false,
+        isIOS: environment.isIOS,
+        isAndroid: environment.isAndroid,
+        isNativeApp: environment.isNativeApp,
+        canUseWebPush: true,
       }));
 
+      clearPushPromptDismissal();
+      setShowPushPrompt(false);
+      fetchPushStatus();
       toast.success("Mobile push notifications enabled. A test notification was sent.");
     } catch (error) {
       toast.error(error?.response?.data?.message || "Unable to enable mobile notifications");
@@ -608,19 +768,41 @@ export default function Topbar({ openSidebar }) {
       }
     : barStyle;
   const showEnablePushButton =
-    pushState.supported && pushState.enabled && !pushState.subscribed;
-  const pushStatusMessage = !pushState.supported
-    ? "This device/browser does not support phone notifications."
-    : !pushState.enabled
-      ? "Server push setup is still pending."
-      : pushState.subscribed
-        ? "Phone notifications are enabled on this device."
-        : pushState.permission === "denied"
-          ? "Notifications are blocked in browser settings. Enable them there first."
-          : "Enable phone notifications to receive reminders on the mobile screen.";
+    pushState.enabled &&
+    pushState.canUseWebPush &&
+    !pushState.needsInstall &&
+    !pushState.subscribed &&
+    pushState.permission !== "denied";
+  const showInstallCardInDropdown = pushState.needsInstall && !pushState.subscribed;
+  const showOtherDeviceHint =
+    pushState.anyDeviceSubscribed && !pushState.subscribed && pushState.deviceCount > 0;
+  const pushStatusMessage = pushState.isNativeApp
+    ? "This mobile app build still needs native push configuration for tray notifications."
+    : !pushState.secureContext
+      ? "Open this CRM over HTTPS to enable real phone notifications."
+      : showInstallCardInDropdown
+        ? "Install this CRM on the home screen first, then allow notifications on the phone."
+        : !pushState.supported
+          ? "This device/browser does not support phone notifications."
+          : !pushState.enabled
+            ? "Server push setup is still pending."
+            : pushState.subscribed
+              ? "Phone notifications are enabled on this device."
+              : pushState.permission === "denied"
+                ? "Notifications are blocked in browser settings. Enable them there first."
+                : "Enable phone notifications to receive reminders on the mobile screen.";
 
   return (
-    <div style={mobileBarStyle}>
+    <>
+      <MobilePushPrompt
+        open={showPushPrompt}
+        loading={pushState.loading}
+        pushState={pushState}
+        onClose={closePushPrompt}
+        onEnable={handleEnablePushNotifications}
+      />
+
+      <div style={mobileBarStyle}>
       <div style={styles.left}>
         {isMobile && (
           <button onClick={openSidebar} style={styles.iconButton} aria-label="Open menu">
@@ -654,29 +836,46 @@ export default function Topbar({ openSidebar }) {
                     Action-first reminders only. Open the lead directly from here.
                   </p>
                   <p style={styles.pushHint}>{pushStatusMessage}</p>
-                    {showEnablePushButton && (
-                      <button
-                        type="button"
+                  {showOtherDeviceHint && (
+                    <p style={styles.pushDeviceHint}>
+                      Another device is already subscribed. This phone still needs its own enable
+                      step.
+                    </p>
+                  )}
+                  {showEnablePushButton && (
+                    <button
+                      type="button"
                       onClick={handleEnablePushNotifications}
                       style={styles.pushButton}
                       disabled={pushState.loading}
-                      >
-                        {pushState.loading ? "Enabling..." : "Enable phone notifications"}
-                      </button>
-                    )}
-                    {pushState.subscribed && (
+                    >
+                      {pushState.loading ? "Enabling..." : "Enable phone notifications"}
+                    </button>
+                  )}
+                  {pushState.subscribed && (
+                    <button
+                      type="button"
+                      onClick={handleSendTestNotification}
+                      style={styles.pushSecondaryButton}
+                      disabled={pushState.loading}
+                    >
+                      {pushState.loading ? "Sending..." : "Send test notification"}
+                    </button>
+                  )}
+                  {showInstallCardInDropdown && (
+                    <div style={styles.installCardInDropdown}>
                       <button
                         type="button"
-                        onClick={handleSendTestNotification}
+                        onClick={() => setShowPushPrompt(true)}
                         style={styles.pushSecondaryButton}
-                        disabled={pushState.loading}
                       >
-                        {pushState.loading ? "Sending..." : "Send test notification"}
+                        Install app for iPhone notifications
                       </button>
-                    )}
-                  </div>
-                  <div style={styles.dropdownCount}>{scheduledCount || 0}</div>
+                    </div>
+                  )}
                 </div>
+                <div style={styles.dropdownCount}>{scheduledCount || 0}</div>
+              </div>
 
               <div style={styles.summaryRow}>
                 {summaryCards.map((card) => (
@@ -801,7 +1000,8 @@ export default function Topbar({ openSidebar }) {
           <FiLogOut />
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -1134,5 +1334,16 @@ const styles = {
     color: "#475569",
     lineHeight: 1.5,
     maxWidth: 260,
+  },
+  pushDeviceHint: {
+    margin: "8px 0 0",
+    fontSize: 11,
+    color: "#9a3412",
+    lineHeight: 1.5,
+    maxWidth: 280,
+  },
+  installCardInDropdown: {
+    marginTop: 10,
+    maxWidth: 290,
   },
 };

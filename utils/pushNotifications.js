@@ -34,6 +34,17 @@ async function subscribeUser(userId, subscription, userAgent = "") {
     throw new Error("Invalid push subscription");
   }
 
+  await User.updateMany(
+    { _id: { $ne: userId } },
+    {
+      $pull: {
+        pushSubscriptions: {
+          endpoint: subscription.endpoint,
+        },
+      },
+    }
+  );
+
   const user = await User.findById(userId);
   if (!user) {
     throw new Error("User not found");
@@ -111,7 +122,10 @@ async function sendPushToUser(userId, payload) {
 
   for (const subscription of subscriptions) {
     try {
-      await webpush.sendNotification(subscription.toObject?.() || subscription, body);
+      await webpush.sendNotification(subscription.toObject?.() || subscription, body, {
+        TTL: 60 * 60,
+        urgency: "high",
+      });
       validSubscriptions.push(subscription);
       sent += 1;
     } catch (error) {

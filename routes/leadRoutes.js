@@ -6,6 +6,7 @@ const Lead = require("../models/lead");
 const Activity = require("../models/activity");
 const User = require("../models/user");
 const { protect, allowRoles } = require("../middleware/authMiddleware");
+const { sendPushToCurrentDevice } = require("../utils/pushNotifications");
 
 const multer = require("multer");
 const csv = require("csv-parser");
@@ -447,6 +448,94 @@ router.get("/notifications", protect, async (req, res) => {
   } catch (err) {
     console.log("Notification error:", err);
     res.status(500).json({ message: "Failed to load notifications" });
+  }
+});
+
+router.post("/notifications/push-sync", protect, async (req, res) => {
+  try {
+    const requestedIds = Array.isArray(req.body?.notificationIds)
+      ? req.body.notificationIds.filter((id) => mongoose.isValidObjectId(id))
+      : [];
+
+    if (!requestedIds.length) {
+      return res.json({ message: "No notifications selected", sent: 0 });
+    }
+
+    const deviceTarget = {
+      endpoint: typeof req.body?.endpoint === "string" ? req.body.endpoint.trim() : "",
+      nativeToken: typeof req.body?.nativeToken === "string" ? req.body.nativeToken.trim() : "",
+    };
+
+    if (!deviceTarget.endpoint && !deviceTarget.nativeToken) {
+      return res.status(400).json({ message: "Current device target is required" });
+    }
+
+    const filter = await applyLeadScope(req, {
+      _id: { $in: requestedIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      isDeleted: false,
+      $or: [{ reminderDate: { $ne: null } }, { nextFollowUpDate: { $ne: null } }],
+    });
+
+    const now = new Date();
+    const leads = await Lead.find(filter)
+      .select("name reminderDate nextFollowUpDate purpose status notes reminderSent reminderRead")
+      .lean();
+
+    const importantItems = leads
+      .map((lead) => {
+        const effectiveReminderDate = getEffectiveReminderDate(lead);
+        const reminderState = getReminderState(effectiveReminderDate, now);
+        const isAlertActive = Boolean(lead.reminderSent && !lead.reminderRead);
+
+        if (
+          reminderState.key === "unscheduled" ||
+          !(isAlertActive || reminderState.key === "overdue" || reminderState.key === "today")
+        ) {
+          return null;
+        }
+
+        return {
+          leadId: lead._id.toString(),
+          title: `${lead.name || "Lead"} reminder`,
+          body: lead.notes || "Follow-up reminder needs attention.",
+          tag: `lead-reminder-${lead._id}`,
+          url: `/lead/${lead._id}`,
+          channelId: "crm-reminders",
+          clickAction: "OPEN_CRM_REMINDER",
+          data: {
+            leadId: lead._id.toString(),
+            reminderDate: effectiveReminderDate,
+            purpose: lead.purpose || "followup",
+            status: lead.status || "new",
+            reminderState: reminderState.key,
+          },
+        };
+      })
+      .filter(Boolean)
+      .sort((left, right) => requestedIds.indexOf(left.leadId) - requestedIds.indexOf(right.leadId))
+      .slice(0, 12);
+
+    let sent = 0;
+    let skipped = 0;
+
+    for (const item of importantItems) {
+      const result = await sendPushToCurrentDevice(req.user.id, deviceTarget, item);
+      if (result.sent > 0) {
+        sent += result.sent;
+      } else {
+        skipped += 1;
+      }
+    }
+
+    res.json({
+      message: "Active reminders sent to current device",
+      sent,
+      skipped,
+      count: importantItems.length,
+    });
+  } catch (err) {
+    console.log("Notification push sync error:", err);
+    res.status(500).json({ message: "Failed to send active reminders to current device" });
   }
 });
 

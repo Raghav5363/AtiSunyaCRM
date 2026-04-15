@@ -18,6 +18,13 @@ import {
   getPushEnvironment,
   shouldSuppressPushPrompt,
 } from "../utils/pushSupport";
+import {
+  checkNativePushPermissions,
+  ensureNativeReminderChannel,
+  PushNotifications,
+  registerNativePush,
+  requestNativePushPermissions,
+} from "../utils/nativePush";
 
 function decodeJwtPayload(token) {
   if (!token) return null;
@@ -140,6 +147,23 @@ function createInitialPushState() {
     isAndroid: false,
     isNativeApp: false,
     canUseWebPush: false,
+    nativePlatform: "web",
+  };
+}
+
+function getPushDeviceCopy(pushState) {
+  const isPhoneDevice = Boolean(pushState?.isNativeApp || pushState?.isIOS || pushState?.isAndroid);
+
+  return {
+    isPhoneDevice,
+    deviceLabel: isPhoneDevice ? "phone" : "browser",
+    currentDeviceLabel: isPhoneDevice ? "this phone" : "this browser",
+    currentDeviceLabelTitle: isPhoneDevice ? "This phone" : "This browser",
+    enableButtonLabel: pushState?.isNativeApp
+      ? "Enable app notifications"
+      : isPhoneDevice
+        ? "Enable phone notifications"
+        : "Enable browser notifications",
   };
 }
 
@@ -183,6 +207,11 @@ export default function Topbar({ openSidebar }) {
   const socketRef = useRef(null);
   const notifiedAlertIdsRef = useRef(new Set());
   const syncedPushEndpointsRef = useRef(new Set());
+  const currentWebPushEndpointRef = useRef("");
+  const nativePushTokenRef = useRef("");
+  const nativePushListenersRef = useRef([]);
+  const sendNativeTestAfterSyncRef = useRef(false);
+  const syncedCurrentDeviceNotificationsRef = useRef(new Set());
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [notifications, setNotifications] = useState(createEmptyNotifications);
@@ -194,6 +223,34 @@ export default function Topbar({ openSidebar }) {
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
   const token = localStorage.getItem("token");
   const user = useMemo(() => decodeJwtPayload(token), [token]);
+  const pushDeviceCopy = getPushDeviceCopy(pushState);
+
+  const notificationSyncStorageKey = useMemo(
+    () => `atisunya_device_notification_sync_${user?.id || "guest"}`,
+    [user?.id]
+  );
+
+  const persistSyncedNotificationKeys = useCallback(
+    (values) => {
+      try {
+        const trimmedValues = Array.from(values).slice(-100);
+        window.localStorage.setItem(notificationSyncStorageKey, JSON.stringify(trimmedValues));
+      } catch {}
+    },
+    [notificationSyncStorageKey]
+  );
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(notificationSyncStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      syncedCurrentDeviceNotificationsRef.current = new Set(
+        Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : []
+      );
+    } catch {
+      syncedCurrentDeviceNotificationsRef.current = new Set();
+    }
+  }, [notificationSyncStorageKey]);
 
   const fetchNotifications = useCallback(
     async ({ resetOnUnauthorized = true } = {}) => {
@@ -308,10 +365,53 @@ export default function Topbar({ openSidebar }) {
     [BASE_URL, token]
   );
 
+  const syncNativePushToken = useCallback(
+    async (nativeToken, { sendTest = false } = {}) => {
+      if (!token || !nativeToken) {
+        return;
+      }
+
+      const environment = getPushEnvironment();
+      const platform = environment.isIOS ? "ios" : environment.isAndroid ? "android" : "unknown";
+      const deviceName = [navigator.platform, navigator.userAgent].filter(Boolean).join(" | ");
+
+      nativePushTokenRef.current = nativeToken;
+
+      await axios.post(
+        `${BASE_URL}/api/users/push/native/subscribe`,
+        {
+          token: nativeToken,
+          platform,
+          appId: "com.atisunya.crm",
+          deviceName,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setPushState((prev) => ({
+        ...prev,
+        supported: true,
+        subscribed: true,
+        anyDeviceSubscribed: true,
+        deviceCount: Math.max(prev.deviceCount || 0, 1),
+      }));
+
+      if (sendTest) {
+        await axios.post(
+          `${BASE_URL}/api/users/push/test`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    },
+    [BASE_URL, token]
+  );
+
   const fetchPushStatus = useCallback(async () => {
     const environment = getPushEnvironment();
-    const permission =
-      environment.notificationApiSupported && typeof Notification !== "undefined"
+    const permission = environment.isNativeApp
+      ? (await checkNativePushPermissions().catch(() => ({ receive: "default" }))).receive
+      : environment.notificationApiSupported && typeof Notification !== "undefined"
         ? Notification.permission
         : "default";
 
@@ -326,7 +426,8 @@ export default function Topbar({ openSidebar }) {
         isAndroid: environment.isAndroid,
         isNativeApp: environment.isNativeApp,
         canUseWebPush: environment.canUseWebPush,
-        supported: environment.canUseWebPush,
+        supported: environment.isNativeApp || environment.canUseWebPush,
+        nativePlatform: environment.isIOS ? "ios" : environment.isAndroid ? "android" : "web",
       }));
       return;
     }
@@ -337,8 +438,10 @@ export default function Topbar({ openSidebar }) {
       try {
         const registration = await navigator.serviceWorker.ready;
         localSubscription = await registration.pushManager.getSubscription();
+        currentWebPushEndpointRef.current = localSubscription?.endpoint || "";
       } catch (error) {
         console.log("Push registration lookup error:", error?.message || error);
+        currentWebPushEndpointRef.current = "";
       }
     }
 
@@ -355,13 +458,27 @@ export default function Topbar({ openSidebar }) {
         }
       }
 
+      const enabledForCurrentEnvironment = environment.isNativeApp
+        ? environment.isIOS
+          ? Boolean(res.data?.nativeIosEnabled)
+          : environment.isAndroid
+            ? Boolean(res.data?.nativeAndroidEnabled)
+            : Boolean(res.data?.nativeEnabled)
+        : Boolean(res.data?.enabled);
+      const anyDeviceSubscribed = environment.isNativeApp
+        ? Boolean(res.data?.nativeSubscribed)
+        : Boolean(res.data?.subscribed);
+      const deviceCount = environment.isNativeApp
+        ? res.data?.nativeCount || 0
+        : res.data?.count || 0;
+
       setPushState((prev) => ({
         ...prev,
-        supported: environment.canUseWebPush,
-        enabled: Boolean(res.data?.enabled),
-        subscribed: Boolean(localSubscription),
-        anyDeviceSubscribed: Boolean(res.data?.subscribed),
-        deviceCount: res.data?.count || 0,
+        supported: environment.isNativeApp || environment.canUseWebPush,
+        enabled: enabledForCurrentEnvironment,
+        subscribed: environment.isNativeApp ? prev.subscribed : Boolean(localSubscription),
+        anyDeviceSubscribed,
+        deviceCount,
         permission,
         secureContext: environment.secureContext,
         needsInstall: environment.needsInstallForIOSPush,
@@ -369,12 +486,13 @@ export default function Topbar({ openSidebar }) {
         isAndroid: environment.isAndroid,
         isNativeApp: environment.isNativeApp,
         canUseWebPush: environment.canUseWebPush,
+        nativePlatform: environment.isIOS ? "ios" : environment.isAndroid ? "android" : "web",
       }));
     } catch {
       setPushState((prev) => ({
         ...prev,
-        supported: environment.canUseWebPush,
-        subscribed: Boolean(localSubscription),
+        supported: environment.isNativeApp || environment.canUseWebPush,
+        subscribed: environment.isNativeApp ? prev.subscribed : Boolean(localSubscription),
         anyDeviceSubscribed: false,
         deviceCount: 0,
         permission,
@@ -384,6 +502,7 @@ export default function Topbar({ openSidebar }) {
         isAndroid: environment.isAndroid,
         isNativeApp: environment.isNativeApp,
         canUseWebPush: environment.canUseWebPush,
+        nativePlatform: environment.isIOS ? "ios" : environment.isAndroid ? "android" : "web",
       }));
     }
   }, [BASE_URL, syncExistingSubscription, token]);
@@ -439,9 +558,10 @@ export default function Topbar({ openSidebar }) {
     }
 
     const shouldShowPrompt =
-      (pushState.needsInstall || (pushState.enabled && !pushState.subscribed)) &&
-      !pushState.isNativeApp &&
-      pushState.permission !== "denied";
+      pushState.permission !== "denied" &&
+      (pushState.needsInstall ||
+        (pushState.supported && !pushState.subscribed && !pushState.anyDeviceSubscribed) ||
+        (pushState.isNativeApp && pushState.supported && !pushState.subscribed));
 
     if (!shouldShowPrompt) {
       return undefined;
@@ -456,15 +576,104 @@ export default function Topbar({ openSidebar }) {
     };
   }, [
     isMobile,
-    pushState.enabled,
+    pushState.anyDeviceSubscribed,
     pushState.isNativeApp,
     pushState.loading,
     pushState.needsInstall,
     pushState.permission,
     pushState.subscribed,
+    pushState.supported,
     showNotif,
     token,
   ]);
+
+  const resolveNotificationTarget = useCallback((data = {}) => {
+    const rawUrl = typeof data?.url === "string" ? data.url.trim() : "";
+    if (rawUrl) {
+      if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+        try {
+          const parsed = new URL(rawUrl);
+          return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        } catch {
+          return "/dashboard";
+        }
+      }
+
+      if (rawUrl.startsWith("/")) {
+        return rawUrl;
+      }
+    }
+
+    if (data?.leadId) {
+      return `/lead/${data.leadId}`;
+    }
+
+    return "/dashboard";
+  }, []);
+
+  const getCurrentDevicePushTarget = useCallback(() => {
+    if (pushState.isNativeApp && nativePushTokenRef.current) {
+      return {
+        nativeToken: nativePushTokenRef.current,
+      };
+    }
+
+    if (currentWebPushEndpointRef.current) {
+      return {
+        endpoint: currentWebPushEndpointRef.current,
+      };
+    }
+
+    return null;
+  }, [pushState.isNativeApp]);
+
+  const syncCurrentDeviceNotifications = useCallback(
+    async (items, { force = false } = {}) => {
+      if (!token || !pushState.subscribed || !Array.isArray(items) || !items.length) {
+        return;
+      }
+
+      const deviceTarget = getCurrentDevicePushTarget();
+      if (!deviceTarget) {
+        return;
+      }
+
+      const importantItems = items.filter(
+        (item) =>
+          item?._id &&
+          (item?.isAlertActive ||
+            item?.reminderState === "overdue" ||
+            item?.reminderState === "today")
+      );
+
+      if (!importantItems.length) {
+        return;
+      }
+
+      const keyForItem = (item) => `${item._id}:${item.reminderDate || ""}`;
+      const syncedKeys = syncedCurrentDeviceNotificationsRef.current;
+      const pendingItems = force
+        ? importantItems
+        : importantItems.filter((item) => !syncedKeys.has(keyForItem(item)));
+
+      if (!pendingItems.length) {
+        return;
+      }
+
+      await axios.post(
+        `${BASE_URL}/api/leads/notifications/push-sync`,
+        {
+          notificationIds: pendingItems.map((item) => item._id),
+          ...deviceTarget,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      pendingItems.forEach((item) => syncedKeys.add(keyForItem(item)));
+      persistSyncedNotificationKeys(syncedKeys);
+    },
+    [BASE_URL, getCurrentDevicePushTarget, persistSyncedNotificationKeys, pushState.subscribed, token]
+  );
 
   useEffect(() => {
     if (pushState.subscribed) {
@@ -472,6 +681,139 @@ export default function Topbar({ openSidebar }) {
       setShowPushPrompt(false);
     }
   }, [pushState.subscribed]);
+
+  useEffect(() => {
+    const environment = getPushEnvironment();
+    if (!token || !environment.isNativeApp) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const setupNativePush = async () => {
+      try {
+        await PushNotifications.removeAllListeners();
+
+        const registrationHandle = await PushNotifications.addListener(
+          "registration",
+          async (registrationToken) => {
+            if (cancelled || !registrationToken?.value) {
+              return;
+            }
+
+            try {
+              await syncNativePushToken(registrationToken.value, {
+                sendTest: sendNativeTestAfterSyncRef.current,
+              });
+
+              if (sendNativeTestAfterSyncRef.current) {
+                toast.success(
+                  `Notifications enabled on ${pushDeviceCopy.currentDeviceLabel}. Test notification sent.`
+                );
+                clearPushPromptDismissal();
+                setShowPushPrompt(false);
+              }
+            } catch (error) {
+              toast.error(
+                error?.response?.data?.message || "Phone registered, but test notification failed"
+              );
+            } finally {
+              sendNativeTestAfterSyncRef.current = false;
+              setPushState((prev) => ({ ...prev, loading: false, subscribed: true }));
+              fetchPushStatus();
+            }
+          }
+        );
+
+        const registrationErrorHandle = await PushNotifications.addListener(
+          "registrationError",
+          (error) => {
+            if (cancelled) {
+              return;
+            }
+
+            sendNativeTestAfterSyncRef.current = false;
+            setPushState((prev) => ({ ...prev, loading: false }));
+            toast.error(error?.error || "Unable to register this phone for notifications");
+          }
+        );
+
+        const receivedHandle = await PushNotifications.addListener(
+          "pushNotificationReceived",
+          (notification) => {
+            if (cancelled) {
+              return;
+            }
+
+            toast.info(
+              notification?.body || `${notification?.title || "AtiSunya CRM"} notification received`
+            );
+            playNotificationTone();
+          }
+        );
+
+        const actionHandle = await PushNotifications.addListener(
+          "pushNotificationActionPerformed",
+          (action) => {
+            if (cancelled) {
+              return;
+            }
+
+            const target = resolveNotificationTarget(action?.notification?.data || {});
+            setShowNotif(false);
+            navigate(target);
+          }
+        );
+
+        nativePushListenersRef.current = [
+          registrationHandle,
+          registrationErrorHandle,
+          receivedHandle,
+          actionHandle,
+        ];
+
+        await ensureNativeReminderChannel();
+
+        const permissions = await checkNativePushPermissions();
+        if (cancelled) {
+          return;
+        }
+
+        setPushState((prev) => ({
+          ...prev,
+          supported: true,
+          permission: permissions.receive,
+        }));
+
+        if (permissions.receive === "granted") {
+          await registerNativePush();
+        }
+      } catch (error) {
+        console.log("Native push setup error:", error?.message || error);
+      }
+    };
+
+    setupNativePush();
+
+    return () => {
+      cancelled = true;
+
+      const handles = nativePushListenersRef.current;
+      nativePushListenersRef.current = [];
+      handles.forEach((handle) => {
+        if (typeof handle?.remove === "function") {
+          handle.remove().catch(() => {});
+        }
+      });
+    };
+  }, [
+    fetchPushStatus,
+    navigate,
+    pushDeviceCopy.currentDeviceLabel,
+    resolveNotificationTarget,
+    syncNativePushToken,
+    token,
+  ]);
 
   useEffect(() => {
     if (!token || !user?.id) {
@@ -503,6 +845,16 @@ export default function Topbar({ openSidebar }) {
       socketRef.current = null;
     };
   }, [BASE_URL, fetchNotifications, token, user?.id]);
+
+  useEffect(() => {
+    if (isMobile || !pushState.enabled || !pushState.subscribed || !notifications.data?.length) {
+      return;
+    }
+
+    syncCurrentDeviceNotifications(notifications.data).catch((error) => {
+      console.log("Current device notification sync error:", error?.response?.data || error?.message);
+    });
+  }, [isMobile, notifications.data, pushState.enabled, pushState.subscribed, syncCurrentDeviceNotifications]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -543,6 +895,43 @@ export default function Topbar({ openSidebar }) {
       return;
     }
 
+    if (environment.isNativeApp) {
+      try {
+        setPushState((prev) => ({ ...prev, loading: true }));
+
+        await ensureNativeReminderChannel();
+        let permissionState = await checkNativePushPermissions();
+
+        if (permissionState.receive === "prompt" || permissionState.receive === "prompt-with-rationale") {
+          permissionState = await requestNativePushPermissions();
+        }
+
+        setPushState((prev) => ({ ...prev, permission: permissionState.receive }));
+
+        if (permissionState.receive !== "granted") {
+          sendNativeTestAfterSyncRef.current = false;
+          setPushState((prev) => ({ ...prev, loading: false }));
+          toast.error("Notification permission was not allowed on this phone");
+          return;
+        }
+
+        sendNativeTestAfterSyncRef.current = true;
+        await registerNativePush();
+        toast.info(
+          `Registering ${pushDeviceCopy.currentDeviceLabel} for automatic reminder notifications...`
+        );
+        return;
+      } catch (error) {
+        sendNativeTestAfterSyncRef.current = false;
+        setPushState((prev) => ({ ...prev, loading: false }));
+        toast.error(
+          error?.message ||
+            `Unable to enable notifications on ${pushDeviceCopy.currentDeviceLabel}`
+        );
+        return;
+      }
+    }
+
     if (!environment.canUseWebPush) {
       toast.error("This device/browser does not support web push notifications");
       return;
@@ -576,6 +965,8 @@ export default function Topbar({ openSidebar }) {
           applicationServerKey: urlBase64ToUint8Array(keyRes.data.publicKey),
         });
       }
+
+      currentWebPushEndpointRef.current = subscription?.endpoint || "";
 
       await axios.post(
         `${BASE_URL}/api/users/push/subscribe`,
@@ -612,9 +1003,14 @@ export default function Topbar({ openSidebar }) {
       clearPushPromptDismissal();
       setShowPushPrompt(false);
       fetchPushStatus();
-      toast.success("Mobile push notifications enabled. A test notification was sent.");
+      toast.success(
+        `Notifications enabled on ${pushDeviceCopy.currentDeviceLabel}. A test notification was sent.`
+      );
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Unable to enable mobile notifications");
+      toast.error(
+        error?.response?.data?.message ||
+          `Unable to enable notifications on ${pushDeviceCopy.currentDeviceLabel}`
+      );
     } finally {
       setPushState((prev) => ({ ...prev, loading: false }));
     }
@@ -623,12 +1019,26 @@ export default function Topbar({ openSidebar }) {
   const handleSendTestNotification = async () => {
     try {
       setPushState((prev) => ({ ...prev, loading: true }));
+
+      const importantItems = (notifications.data || []).filter(
+        (item) =>
+          item?.isAlertActive ||
+          item?.reminderState === "overdue" ||
+          item?.reminderState === "today"
+      );
+
+      if (pushState.subscribed && importantItems.length) {
+        await syncCurrentDeviceNotifications(importantItems, { force: true });
+        toast.success(`Active reminders sent to ${pushDeviceCopy.currentDeviceLabel}`);
+        return;
+      }
+
       await axios.post(
         `${BASE_URL}/api/users/push/test`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      toast.success("Test notification sent");
+      toast.success(`Test notification sent to ${pushDeviceCopy.currentDeviceLabel}`);
     } catch (error) {
       toast.error(error?.response?.data?.message || "Failed to send test notification");
     } finally {
@@ -705,12 +1115,24 @@ export default function Topbar({ openSidebar }) {
     return pageTitles[location.pathname] || "Dashboard";
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    if (socketRef.current) {
-      socketRef.current.disconnect();
+  const handleLogout = async () => {
+    try {
+      if (pushState.isNativeApp && nativePushTokenRef.current && token) {
+        await axios.post(
+          `${BASE_URL}/api/users/push/native/unsubscribe`,
+          { token: nativePushTokenRef.current },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    } catch (error) {
+      console.log("Native push unsubscribe error:", error?.response?.data || error?.message);
+    } finally {
+      localStorage.clear();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+      navigate("/login", { replace: true });
     }
-    navigate("/login", { replace: true });
   };
 
   const summary = notifications.summary || createEmptyNotifications().summary;
@@ -768,29 +1190,52 @@ export default function Topbar({ openSidebar }) {
       }
     : barStyle;
   const showEnablePushButton =
-    pushState.enabled &&
-    pushState.canUseWebPush &&
+    pushState.supported &&
     !pushState.needsInstall &&
     !pushState.subscribed &&
     pushState.permission !== "denied";
   const showInstallCardInDropdown = pushState.needsInstall && !pushState.subscribed;
   const showOtherDeviceHint =
     pushState.anyDeviceSubscribed && !pushState.subscribed && pushState.deviceCount > 0;
+  const showDesktopSyncButton = !isMobile && pushState.subscribed && pushState.enabled;
+  const importantNotificationCount = (notifications.data || []).filter(
+    (item) =>
+      item?.isAlertActive ||
+      item?.reminderState === "overdue" ||
+      item?.reminderState === "today"
+  ).length;
+  const otherDeviceHintMessage = `Another device on this account is already enabled. ${pushDeviceCopy.currentDeviceLabelTitle} still needs its own enable step.`;
   const pushStatusMessage = pushState.isNativeApp
-    ? "This mobile app build still needs native push configuration for tray notifications."
+    ? !pushState.enabled
+      ? `Native ${pushState.nativePlatform} push is not fully configured on the server yet.`
+      : pushState.subscribed
+        ? "Automatic reminder notifications are enabled on this phone."
+        : pushState.permission === "denied"
+          ? "Notifications are blocked in phone settings. Enable them there first."
+          : "Enable real tray notifications for this installed mobile app."
     : !pushState.secureContext
-      ? "Open this CRM over HTTPS to enable real phone notifications."
+      ? `Open this CRM over HTTPS to enable ${pushDeviceCopy.deviceLabel} notifications.`
       : showInstallCardInDropdown
         ? "Install this CRM on the home screen first, then allow notifications on the phone."
         : !pushState.supported
-          ? "This device/browser does not support phone notifications."
+          ? `This ${pushDeviceCopy.deviceLabel} does not support reminder notifications.`
           : !pushState.enabled
             ? "Server push setup is still pending."
             : pushState.subscribed
-              ? "Phone notifications are enabled on this device."
+              ? pushDeviceCopy.isPhoneDevice
+                ? "Automatic reminder notifications are enabled on this phone."
+                : "Automatic reminder notifications are enabled in this browser."
               : pushState.permission === "denied"
-                ? "Notifications are blocked in browser settings. Enable them there first."
-                : "Enable phone notifications to receive reminders on the mobile screen.";
+                ? pushDeviceCopy.isPhoneDevice
+                  ? "Notifications are blocked in phone settings. Enable them there first."
+                  : "Notifications are blocked in browser settings. Enable them there first."
+                : pushDeviceCopy.isPhoneDevice
+                  ? "Enable phone notifications to receive reminders in the mobile tray."
+                  : "Enable browser notifications to receive reminders in the browser tray.";
+  const pushSyncHelperMessage =
+    showDesktopSyncButton
+      ? `Future reminders are sent automatically to every enabled device when they become due. Use the button below only to resend active reminders to ${pushDeviceCopy.currentDeviceLabel}.`
+      : "";
 
   return (
     <>
@@ -838,8 +1283,7 @@ export default function Topbar({ openSidebar }) {
                   <p style={styles.pushHint}>{pushStatusMessage}</p>
                   {showOtherDeviceHint && (
                     <p style={styles.pushDeviceHint}>
-                      Another device is already subscribed. This phone still needs its own enable
-                      step.
+                      {otherDeviceHintMessage}
                     </p>
                   )}
                   {showEnablePushButton && (
@@ -849,18 +1293,29 @@ export default function Topbar({ openSidebar }) {
                       style={styles.pushButton}
                       disabled={pushState.loading}
                     >
-                      {pushState.loading ? "Enabling..." : "Enable phone notifications"}
+                      {pushState.loading ? "Enabling..." : pushDeviceCopy.enableButtonLabel}
                     </button>
                   )}
-                  {pushState.subscribed && (
-                    <button
-                      type="button"
-                      onClick={handleSendTestNotification}
-                      style={styles.pushSecondaryButton}
-                      disabled={pushState.loading}
-                    >
-                      {pushState.loading ? "Sending..." : "Send test notification"}
-                    </button>
+                  {showDesktopSyncButton && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleSendTestNotification}
+                        style={styles.pushSecondaryButton}
+                        disabled={pushState.loading}
+                      >
+                        {pushState.loading
+                          ? "Sending..."
+                          : importantNotificationCount > 0
+                            ? `${
+                                pushDeviceCopy.isPhoneDevice
+                                  ? "Resend active reminders to this phone"
+                                  : "Resend active reminders to this browser"
+                              } (${importantNotificationCount})`
+                            : `Send test notification to ${pushDeviceCopy.currentDeviceLabel}`}
+                      </button>
+                      <p style={styles.pushHint}>{pushSyncHelperMessage}</p>
+                    </>
                   )}
                   {showInstallCardInDropdown && (
                     <div style={styles.installCardInDropdown}>

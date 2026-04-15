@@ -23,10 +23,14 @@ export default function MobilePushPrompt({
 
   const title = needsInstall
     ? "Install the app for iPhone alerts"
-    : "Enable phone notifications";
+    : pushState?.isNativeApp
+      ? "Enable app notifications"
+      : "Enable phone notifications";
   const description = needsInstall
     ? "Install AtiSunya CRM on the home screen first. After that, iPhone can show reminder alerts on the notification screen like a real app."
-    : "Turn on reminder alerts for this phone so follow-ups can reach the mobile notification tray even when the CRM is in the background.";
+    : pushState?.isNativeApp
+      ? "Allow this installed app to send real reminder alerts to the mobile notification tray even when the CRM is not open."
+      : "Turn on reminder alerts for this phone so follow-ups can reach the mobile notification tray even when the CRM is in the background.";
 
   return (
     <div style={styles.overlay} role="presentation" onClick={onClose}>

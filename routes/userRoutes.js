@@ -6,9 +6,14 @@ const { protect, allowRoles } = require("../middleware/authMiddleware");
 const {
   getPublicKey,
   isPushConfigured,
+  isNativeAndroidPushConfigured,
+  isNativeIosPushConfigured,
+  isNativePushConfigured,
   sendPushToUser,
   subscribeUser,
+  subscribeNativeUser,
   unsubscribeUser,
+  unsubscribeNativeUser,
 } = require("../utils/pushNotifications");
 
 const router = express.Router();
@@ -72,11 +77,16 @@ router.get("/push/public-key", protect, async (req, res) => {
 });
 
 router.get("/push/status", protect, async (req, res) => {
-  const user = await User.findById(req.user.id).select("pushSubscriptions");
+  const user = await User.findById(req.user.id).select("pushSubscriptions nativePushTokens");
   res.json({
     enabled: isPushConfigured(),
     subscribed: Boolean(user?.pushSubscriptions?.length),
     count: user?.pushSubscriptions?.length || 0,
+    nativeEnabled: isNativePushConfigured(),
+    nativeAndroidEnabled: isNativeAndroidPushConfigured(),
+    nativeIosEnabled: isNativeIosPushConfigured(),
+    nativeSubscribed: Boolean(user?.nativePushTokens?.length),
+    nativeCount: user?.nativePushTokens?.length || 0,
   });
 });
 
@@ -100,12 +110,12 @@ router.post("/push/subscribe", protect, async (req, res) => {
 
 router.post("/push/test", protect, async (req, res) => {
   try {
-    if (!isPushConfigured()) {
+    if (!isPushConfigured() && !isNativePushConfigured()) {
       return res.status(400).json({ message: "Push notifications are not configured yet" });
     }
 
-    const user = await User.findById(req.user.id).select("email pushSubscriptions");
-    if (!user?.pushSubscriptions?.length) {
+    const user = await User.findById(req.user.id).select("email pushSubscriptions nativePushTokens");
+    if (!user?.pushSubscriptions?.length && !user?.nativePushTokens?.length) {
       return res.status(400).json({ message: "No subscribed device found for this user" });
     }
 
@@ -129,6 +139,8 @@ router.post("/push/test", protect, async (req, res) => {
       body: leadNotes,
       tag: leadId ? `lead-reminder-${leadId}` : `crm-test-${Date.now()}`,
       url: leadId ? `/lead/${leadId}` : "/dashboard",
+      channelId: "crm-reminders",
+      clickAction: "OPEN_CRM_REMINDER",
       icon: "/app-icon-192.png",
       badge: "/app-icon-192.png",
       data: {
@@ -146,6 +158,39 @@ router.post("/push/test", protect, async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ message: error.message || "Failed to send test push" });
+  }
+});
+
+router.post("/push/native/subscribe", protect, async (req, res) => {
+  try {
+    const count = await subscribeNativeUser(
+      req.user.id,
+      req.body?.token,
+      {
+        platform: req.body?.platform,
+        appId: req.body?.appId,
+        deviceName: req.body?.deviceName,
+      },
+      req.headers["user-agent"] || ""
+    );
+
+    res.json({
+      message: "Native push device registered",
+      count,
+      nativeAndroidEnabled: isNativeAndroidPushConfigured(),
+      nativeIosEnabled: isNativeIosPushConfigured(),
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message || "Failed to save native push token" });
+  }
+});
+
+router.post("/push/native/unsubscribe", protect, async (req, res) => {
+  try {
+    const count = await unsubscribeNativeUser(req.user.id, req.body?.token);
+    res.json({ message: "Native push disabled", count });
+  } catch (error) {
+    res.status(400).json({ message: error.message || "Failed to remove native push token" });
   }
 });
 

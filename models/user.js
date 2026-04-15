@@ -37,6 +37,41 @@ const pushSubscriptionSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const nativePushTokenSchema = new mongoose.Schema(
+  {
+    token: {
+      type: String,
+      required: true,
+    },
+    platform: {
+      type: String,
+      enum: ["android", "ios", "unknown"],
+      default: "unknown",
+    },
+    appId: {
+      type: String,
+      default: "",
+    },
+    deviceName: {
+      type: String,
+      default: "",
+    },
+    userAgent: {
+      type: String,
+      default: "",
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -54,6 +89,10 @@ const userSchema = new mongoose.Schema({
   },
   pushSubscriptions: {
     type: [pushSubscriptionSchema],
+    default: [],
+  },
+  nativePushTokens: {
+    type: [nativePushTokenSchema],
     default: [],
   }
 });

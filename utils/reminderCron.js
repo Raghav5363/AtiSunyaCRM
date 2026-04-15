@@ -3,6 +3,7 @@ const Lead = require("../models/lead");
 const { sendPushToUser } = require("./pushNotifications");
 
 let reminderTask = null;
+const reminderSchedule = process.env.REMINDER_CRON_SCHEDULE || "*/5 * * * * *";
 
 const startReminderCron = () => {
   if (reminderTask) {
@@ -10,7 +11,7 @@ const startReminderCron = () => {
   }
 
   reminderTask = cron.schedule(
-    "*/15 * * * * *",
+    reminderSchedule,
     async () => {
       try {
         const now = new Date();
@@ -45,21 +46,31 @@ const startReminderCron = () => {
             notes: lead.notes || "",
             reminderDate: effectiveReminderDate,
           };
+          const userRoomId = lead.assignedTo ? lead.assignedTo.toString() : "";
+          const connectedSocketCount = global.io
+            ? userRoomId
+              ? global.io.sockets.adapter.rooms.get(userRoomId)?.size || 0
+              : global.io.sockets.sockets.size || 0
+            : 0;
+          const hasLiveSocketListener = connectedSocketCount > 0;
 
           if (global.io) {
-            if (lead.assignedTo) {
-              global.io.to(lead.assignedTo.toString()).emit("new_notification", payload);
+            if (userRoomId) {
+              global.io.to(userRoomId).emit("new_notification", payload);
             } else {
               global.io.emit("new_notification", payload);
             }
           }
 
+          let pushResult = { sent: 0 };
           if (lead.assignedTo) {
-            await sendPushToUser(lead.assignedTo.toString(), {
+            pushResult = await sendPushToUser(lead.assignedTo.toString(), {
               title: `${lead.name || "Lead"} reminder`,
               body: lead.notes || "Follow-up reminder needs attention.",
               tag: `lead-reminder-${lead._id}`,
               url: `/lead/${lead._id}`,
+              channelId: "crm-reminders",
+              clickAction: "OPEN_CRM_REMINDER",
               icon: "/app-icon-192.png",
               badge: "/app-icon-192.png",
               data: {
@@ -71,12 +82,18 @@ const startReminderCron = () => {
             });
           }
 
-          bulkOps.push({
-            updateOne: {
-              filter: { _id: lead._id },
-              update: { $set: { reminderSent: true, reminderRead: false } },
-            },
-          });
+          if (hasLiveSocketListener || pushResult.sent > 0) {
+            bulkOps.push({
+              updateOne: {
+                filter: { _id: lead._id },
+                update: { $set: { reminderSent: true, reminderRead: false } },
+              },
+            });
+          } else {
+            console.log(
+              `[ReminderCron] Reminder kept pending for ${lead._id} because no live socket or push target was available`
+            );
+          }
         }
 
         if (bulkOps.length) {

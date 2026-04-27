@@ -68,6 +68,7 @@ export default function PwaInstallCard({ compact = false }) {
   }, []);
 
   const platform = useMemo(getPlatform, []);
+
   const canPromptInstall = Boolean(deferredPrompt);
   const shouldShow = !isInstalled && (canPromptInstall || platform.isIOS || platform.isMobile);
 
@@ -96,26 +97,24 @@ export default function PwaInstallCard({ compact = false }) {
           <FiSmartphone />
         </div>
         <div style={styles.copy}>
-          <div style={styles.title}>Install On This Phone</div>
+          <div style={styles.title}>Install Directly From Link</div>
           <div style={styles.subtext}>
-            Save AtiSunya CRM to the home screen for a cleaner, app-like mobile workspace.
+            Save this CRM on your phone like a real app without Play Store or App Store.
           </div>
         </div>
       </div>
 
-      {canPromptInstall ? (
+      {canPromptInstall && (
         <div style={styles.actionRow}>
           <button type="button" onClick={handleInstall} style={styles.primaryButton}>
             <FiDownload />
-            <span>Install app</span>
+            <span>Install App</span>
           </button>
-          <div style={styles.caption}>
-            Best on Android Chrome and other installable mobile browsers.
-          </div>
+          <div style={styles.caption}>Best on Android Chrome and other installable browsers.</div>
         </div>
-      ) : null}
+      )}
 
-      {isIOSSafariInstall ? (
+      {isIOSSafariInstall && (
         <div style={styles.instructions}>
           <div style={styles.instructionTitle}>iPhone install steps</div>
           <div style={styles.stepRow}>
@@ -132,9 +131,9 @@ export default function PwaInstallCard({ compact = false }) {
             <span>Turn on <strong>Open as Web App</strong> if shown, then tap <strong>Add</strong>.</span>
           </div>
         </div>
-      ) : null}
+      )}
 
-      {isIOSOtherBrowser ? (
+      {isIOSOtherBrowser && (
         <div style={styles.instructions}>
           <div style={styles.instructionTitle}>iPhone note</div>
           <div style={styles.stepRow}>
@@ -142,7 +141,7 @@ export default function PwaInstallCard({ compact = false }) {
             <span>Open this link in <strong>Safari</strong> to install it on the home screen.</span>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -220,8 +219,8 @@ const styles = {
   },
   caption: {
     fontSize: 12,
-    lineHeight: 1.45,
     color: "#64748b",
+    lineHeight: 1.45,
   },
   instructions: {
     marginTop: 16,
@@ -243,8 +242,8 @@ const styles = {
     alignItems: "center",
     gap: 10,
     fontSize: 13,
-    lineHeight: 1.45,
     color: "#334155",
+    lineHeight: 1.45,
   },
   stepBadge: {
     width: 22,

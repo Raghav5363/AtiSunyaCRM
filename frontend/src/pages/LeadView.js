@@ -121,6 +121,7 @@ export default function LeadView() {
   const [notes, setNotes] = useState("");
   const [nextFollowUpDate, setNextFollowUpDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const isCompactMobile = window.innerWidth < 390;
 
   const token = localStorage.getItem("token");
   const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
@@ -274,7 +275,11 @@ export default function LeadView() {
   };
   const formGridStyle = {
     ...styles.formGrid,
-    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: isMobile
+      ? isCompactMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))"
+      : "repeat(2, minmax(0, 1fr))",
   };
   const detailGridStyle = {
     ...styles.detailGrid,
@@ -283,7 +288,7 @@ export default function LeadView() {
   const noteInputStyle = {
     ...styles.input,
     ...(isMobile ? styles.inputCompact : null),
-    minHeight: isMobile ? 86 : 104,
+    minHeight: isMobile ? 74 : 104,
     resize: "vertical",
   };
   const formInputStyle = isMobile ? { ...styles.input, ...styles.inputCompact } : styles.input;
@@ -381,7 +386,7 @@ export default function LeadView() {
               title="Add Activity"
               subtitle={
                 isMobile
-                  ? "Quick update"
+                  ? "Quick update with next follow-up."
                   : "Log every interaction and set the next follow-up reminder."
               }
               style={isMobile ? styles.sectionCardCompact : undefined}
@@ -994,7 +999,7 @@ const styles = {
   },
   sectionCardCompact: {
     borderRadius: 18,
-    padding: 14,
+    padding: 12,
   },
   detailGrid: {
     display: "grid",
@@ -1086,10 +1091,10 @@ const styles = {
     fontFamily: "inherit",
   },
   inputCompact: {
-    padding: "10px 12px",
+    padding: "9px 11px",
     borderRadius: 10,
-    fontSize: 13,
-    minHeight: 42,
+    fontSize: 12,
+    minHeight: 40,
   },
   formFooter: {
     display: "flex",

@@ -223,6 +223,42 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 }
 
+function getTrackedNotificationKey(item = {}) {
+  const nestedData =
+    item?.data && typeof item.data === "object" && !Array.isArray(item.data) ? item.data : {};
+  const rawType = item?.type || item?.notificationType || nestedData?.type || "reminder";
+  const baseId =
+    item?.notificationId ||
+    item?._id ||
+    item?.leadId ||
+    nestedData?.notificationId ||
+    nestedData?.leadId ||
+    "";
+
+  if (!baseId) {
+    return "";
+  }
+
+  if (rawType === "lead-assigned" || rawType === "lead_assigned") {
+    return `assignment:${baseId}`;
+  }
+
+  const reminderDate = item?.reminderDate || nestedData?.reminderDate || "";
+  return `reminder:${baseId}:${reminderDate}`;
+}
+
+function getLiveNotificationMessage(item = {}) {
+  const nestedData =
+    item?.data && typeof item.data === "object" && !Array.isArray(item.data) ? item.data : {};
+  const rawType = item?.type || item?.notificationType || nestedData?.type || "reminder";
+
+  if (rawType === "lead-assigned" || rawType === "lead_assigned") {
+    return item?.body || item?.title || "A new lead was assigned to you";
+  }
+
+  return item?.body || item?.notes || `${item?.name || nestedData?.leadName || "Lead"} reminder needs attention`;
+}
+
 function playNotificationTone() {
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -273,6 +309,34 @@ export default function Topbar({ openSidebar }) {
   const token = localStorage.getItem("token");
   const user = useMemo(() => decodeJwtPayload(token), [token]);
   const pushDeviceCopy = getPushDeviceCopy(pushState);
+
+  const showLiveNotificationToast = useCallback((item) => {
+    const trackingKey = getTrackedNotificationKey(item);
+    if (trackingKey && notifiedAlertIdsRef.current.has(trackingKey)) {
+      return false;
+    }
+
+    toast.info(getLiveNotificationMessage(item), {
+      autoClose: 3500,
+    });
+    playNotificationTone();
+
+    if (trackingKey) {
+      const trackedKeys = notifiedAlertIdsRef.current;
+      trackedKeys.add(trackingKey);
+
+      while (trackedKeys.size > 200) {
+        const oldestKey = trackedKeys.values().next().value;
+        if (!oldestKey) {
+          break;
+        }
+
+        trackedKeys.delete(oldestKey);
+      }
+    }
+
+    return true;
+  }, []);
 
   const notificationSyncStorageKey = useMemo(
     () => `atisunya_device_notification_sync_${user?.id || "guest"}`,
@@ -365,31 +429,6 @@ export default function Topbar({ openSidebar }) {
             totalItems: 0,
           }
         );
-        const activeAlertItems = nextData.filter((item) => item?.isAlertActive && item?._id);
-        const seenIds = notifiedAlertIdsRef.current;
-
-        activeAlertItems.forEach((item) => {
-          if (!seenIds.has(item._id)) {
-            toast.info(
-              item?.notificationType === "lead_assigned"
-                ? item?.body || item?.title || "A new lead was assigned to you"
-                : `${item?.name || "Lead"} reminder needs attention`,
-              {
-              autoClose: 3000,
-              }
-            );
-
-            playNotificationTone();
-
-            seenIds.add(item._id);
-          }
-        });
-
-        const activeIds = new Set(activeAlertItems.map((item) => item._id));
-        notifiedAlertIdsRef.current = new Set(
-          Array.from(seenIds).filter((id) => activeIds.has(id))
-        );
-
         setNotifications({
           count: recalculatedSummary.unread,
           unreadCount: recalculatedSummary.unread,
@@ -809,17 +848,8 @@ export default function Topbar({ openSidebar }) {
               return;
             }
 
-            const incomingId =
-              notification?.data?.notificationId || notification?.data?.leadId || "";
-            if (incomingId) {
-              notifiedAlertIdsRef.current.add(incomingId);
-            }
-
             fetchNotifications({ resetOnUnauthorized: false });
-            toast.info(
-              notification?.body || `${notification?.title || "AtiSunya CRM"} notification received`
-            );
-            playNotificationTone();
+            showLiveNotificationToast(notification);
           }
         );
 
@@ -884,6 +914,7 @@ export default function Topbar({ openSidebar }) {
     navigate,
     pushDeviceCopy.currentDeviceLabel,
     resolveNotificationTarget,
+    showLiveNotificationToast,
     syncNativePushToken,
     token,
   ]);
@@ -906,17 +937,7 @@ export default function Topbar({ openSidebar }) {
     });
 
     socket.on("new_notification", (data) => {
-      if (data?.type === "lead-assigned") {
-        if (data?.notificationId) {
-          notifiedAlertIdsRef.current.add(data.notificationId);
-        }
-
-        toast.info(data?.body || `${data?.title || "Lead"} notification received`, {
-          autoClose: 3500,
-        });
-        playNotificationTone();
-      }
-
+      showLiveNotificationToast(data);
       fetchNotifications({ resetOnUnauthorized: false });
     });
 
@@ -928,17 +949,7 @@ export default function Topbar({ openSidebar }) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [BASE_URL, fetchNotifications, token, user?.id]);
-
-  useEffect(() => {
-    if (isMobile || !pushState.enabled || !pushState.subscribed || !notifications.data?.length) {
-      return;
-    }
-
-    syncCurrentDeviceNotifications(notifications.data).catch((error) => {
-      console.log("Current device notification sync error:", error?.response?.data || error?.message);
-    });
-  }, [isMobile, notifications.data, pushState.enabled, pushState.subscribed, syncCurrentDeviceNotifications]);
+  }, [BASE_URL, fetchNotifications, showLiveNotificationToast, token, user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -1153,8 +1164,6 @@ export default function Topbar({ openSidebar }) {
           : [],
       };
     });
-
-    notifiedAlertIdsRef.current.delete(id);
 
     try {
       await axios.put(

@@ -50,15 +50,34 @@ const startReminderCron = () => {
         const bulkOps = [];
 
         for (const lead of leads) {
+          const leadId = lead._id.toString();
           const effectiveReminderDate = lead.reminderDate || lead.nextFollowUpDate || null;
           const recipientIds = getReminderRecipientIds(lead, adminIds);
           const payload = {
-            _id: lead._id.toString(),
+            type: "reminder",
+            notificationId: leadId,
+            _id: leadId,
+            leadId,
             name: lead.name || "Lead",
+            title: `${lead.name || "Lead"} reminder`,
+            body: lead.notes || "Follow-up reminder needs attention.",
             purpose: lead.purpose || "followup",
             status: lead.status || "new",
             notes: lead.notes || "",
             reminderDate: effectiveReminderDate,
+            tag: `lead-reminder-${leadId}`,
+            url: `/lead/${leadId}`,
+            channelId: "crm-reminders",
+            clickAction: "OPEN_CRM_REMINDER",
+            icon: "/app-icon-192.png",
+            badge: "/app-icon-192.png",
+            data: {
+              type: "reminder",
+              leadId,
+              reminderDate: effectiveReminderDate,
+              purpose: lead.purpose || "followup",
+              status: lead.status || "new",
+            },
           };
           const connectedSocketCount = global.io
             ? recipientIds.reduce(
@@ -79,22 +98,7 @@ const startReminderCron = () => {
           if (recipientIds.length) {
             const pushResults = await Promise.all(
               recipientIds.map((recipientId) =>
-                sendPushToUser(recipientId, {
-                  title: `${lead.name || "Lead"} reminder`,
-                  body: lead.notes || "Follow-up reminder needs attention.",
-                  tag: `lead-reminder-${lead._id}`,
-                  url: `/lead/${lead._id}`,
-                  channelId: "crm-reminders",
-                  clickAction: "OPEN_CRM_REMINDER",
-                  icon: "/app-icon-192.png",
-                  badge: "/app-icon-192.png",
-                  data: {
-                    leadId: lead._id.toString(),
-                    reminderDate: effectiveReminderDate,
-                    purpose: lead.purpose || "followup",
-                    status: lead.status || "new",
-                  },
-                })
+                sendPushToUser(recipientId, payload)
               )
             );
 
@@ -106,16 +110,16 @@ const startReminderCron = () => {
             );
           }
 
-          if (hasLiveSocketListener || pushResult.sent > 0) {
-            bulkOps.push({
-              updateOne: {
-                filter: { _id: lead._id },
-                update: { $set: { reminderSent: true, reminderRead: false } },
-              },
-            });
-          } else {
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: lead._id },
+              update: { $set: { reminderSent: true, reminderRead: false } },
+            },
+          });
+
+          if (!hasLiveSocketListener && pushResult.sent === 0) {
             console.log(
-              `[ReminderCron] Reminder kept pending for ${lead._id} because no live socket or push target was available`
+              `[ReminderCron] Reminder marked active for ${lead._id} without live delivery target`
             );
           }
         }

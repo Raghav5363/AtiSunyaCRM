@@ -17,7 +17,7 @@ const activitySchema = new mongoose.Schema(
     activityDateTime: {
       type: Date,
       required: true
-    },
+    },cd frontend 
 
     outcome: {
       type: String,

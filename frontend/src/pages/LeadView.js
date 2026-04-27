@@ -6,11 +6,12 @@ import { FaEnvelope, FaPhoneAlt, FaSms, FaWhatsapp } from "react-icons/fa";
 import {
   FiArrowLeft,
   FiCalendar,
+  FiChevronDown,
+  FiChevronUp,
   FiCheckCircle,
   FiClock,
   FiFileText,
   FiTarget,
-  FiUser,
 } from "react-icons/fi";
 
 function formatDateTime(value) {
@@ -26,24 +27,6 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function formatDate(value) {
-  if (!value) return "Not set";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not set";
-
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatEmailDisplay(value, fallback = "Not set") {
-  if (!value) return fallback;
-  return String(value).trim();
 }
 
 function toLocalDateTimeInput(value) {
@@ -128,6 +111,8 @@ export default function LeadView() {
   const [lead, setLead] = useState(null);
   const [activities, setActivities] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const [showAllTimeline, setShowAllTimeline] = useState(false);
 
   const [activityType, setActivityType] = useState("call");
   const [activityDateTime, setActivityDateTime] = useState(toLocalDateTimeInput());
@@ -151,6 +136,17 @@ export default function LeadView() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    if (isMobile) {
+      setShowMoreDetails(false);
+      setShowAllTimeline(false);
+      return;
+    }
+
+    setShowMoreDetails(true);
+    setShowAllTimeline(true);
+  }, [isMobile]);
 
   const loadLead = useCallback(async () => {
     try {
@@ -223,21 +219,51 @@ export default function LeadView() {
   const cleanNumber = lead.phone ? lead.phone.replace(/\D/g, "") : "";
   const statusTone = getStatusTone(lead.status);
   const reminderTone = getReminderTone(lead.reminderDate || lead.nextFollowUpDate);
+  const quickStats = [
+    {
+      icon: <FiTarget />,
+      label: "Lead Status",
+      value: normalizeText(lead.status),
+    },
+    {
+      icon: <FiCalendar />,
+      label: "Next Follow Up",
+      value: formatDateTime(lead.reminderDate || lead.nextFollowUpDate),
+    },
+    {
+      icon: <FiClock />,
+      label: "Last Contact",
+      value: formatDateTime(lead.lastContactedAt),
+    },
+  ];
+  const visibleActivities = isMobile && !showAllTimeline ? activities.slice(0, 2) : activities;
+  const hasHiddenActivities = visibleActivities.length < activities.length;
   const shellStyle = {
     ...styles.shell,
-    padding: isMobile ? 12 : 18,
+    padding: isMobile ? 8 : 18,
+  };
+  const heroContentStyle = {
+    ...styles.heroContent,
+    gap: isMobile ? 10 : 14,
   };
   const heroTitleStyle = {
     ...styles.heroTitle,
-    fontSize: isMobile ? 24 : 28,
+    fontSize: isMobile ? 20 : 28,
   };
-  const actionRowStyle = {
-    ...styles.actionRow,
-    gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
+  const heroEyebrowStyle = isMobile ? styles.heroEyebrowCompact : styles.eyebrow;
+  const heroTagStyle = isMobile ? styles.tagCompact : styles.tag;
+  const heroSubStyle = isMobile ? styles.heroSubCompact : styles.heroSub;
+  const heroCardStyle = {
+    ...styles.heroCard,
+    borderRadius: isMobile ? 18 : 22,
+    padding: isMobile ? 12 : 18,
   };
+  const actionRowStyle = isMobile ? styles.actionRowMobile : styles.actionRow;
   const statsGridStyle = {
     ...styles.statsGrid,
-    gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
+    gridTemplateColumns: isMobile
+      ? "repeat(2, minmax(0, 1fr))"
+      : `repeat(${quickStats.length}, minmax(0, 1fr))`,
   };
   const contentGridStyle = {
     ...styles.contentGrid,
@@ -245,12 +271,21 @@ export default function LeadView() {
   };
   const formGridStyle = {
     ...styles.formGrid,
-    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: isMobile
+      ? "repeat(auto-fit, minmax(148px, 1fr))"
+      : "repeat(2, minmax(0, 1fr))",
   };
   const detailGridStyle = {
     ...styles.detailGrid,
     gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
   };
+  const noteInputStyle = {
+    ...styles.input,
+    ...(isMobile ? styles.inputCompact : null),
+    minHeight: isMobile ? 62 : 104,
+    resize: "vertical",
+  };
+  const formInputStyle = isMobile ? { ...styles.input, ...styles.inputCompact } : styles.input;
 
   return (
     <div style={styles.page}>
@@ -260,18 +295,18 @@ export default function LeadView() {
           Back
         </button>
 
-        <div style={styles.heroCard}>
-          <div style={styles.heroContent}>
+        <div style={heroCardStyle}>
+          <div style={heroContentStyle}>
             <div style={styles.heroHeader}>
               <div>
-                <p style={styles.eyebrow}>Lead workspace</p>
+                <p style={heroEyebrowStyle}>Lead workspace</p>
                 <h1 style={heroTitleStyle}>{lead.name}</h1>
               </div>
 
               <div style={styles.heroTags}>
                 <span
                   style={{
-                    ...styles.tag,
+                    ...heroTagStyle,
                     color: statusTone.color,
                     background: statusTone.background,
                   }}
@@ -280,7 +315,7 @@ export default function LeadView() {
                 </span>
                 <span
                   style={{
-                    ...styles.tag,
+                    ...heroTagStyle,
                     color: reminderTone.color,
                     background: reminderTone.background,
                   }}
@@ -290,87 +325,73 @@ export default function LeadView() {
               </div>
             </div>
 
-            <p style={styles.heroSub}>
+            <p style={heroSubStyle}>
               Purpose: {normalizeText(lead.purpose, "followup")} | Source: {lead.source || "Direct"}
             </p>
 
             <div style={actionRowStyle}>
-              <ActionButton href={`tel:${lead.phone}`} icon={<FaPhoneAlt />} label="Call" />
-              <ActionButton href={`sms:${lead.phone}`} icon={<FaSms />} label="SMS" />
-              <ActionButton href={`mailto:${lead.email}`} icon={<FaEnvelope />} label="Email" />
               <ActionButton
-                href={`https://wa.me/${cleanNumber}`}
+                href={lead.phone ? `tel:${lead.phone}` : undefined}
+                icon={<FaPhoneAlt />}
+                label="Call"
+                compact={isMobile}
+              />
+              <ActionButton
+                href={lead.phone ? `sms:${lead.phone}` : undefined}
+                icon={<FaSms />}
+                label="SMS"
+                compact={isMobile}
+              />
+              <ActionButton
+                href={lead.email ? `mailto:${lead.email}` : undefined}
+                icon={<FaEnvelope />}
+                label={isMobile ? "Mail" : "Email"}
+                compact={isMobile}
+              />
+              <ActionButton
+                href={cleanNumber ? `https://wa.me/${cleanNumber}` : undefined}
                 icon={<FaWhatsapp />}
-                label="WhatsApp"
+                label={isMobile ? "WA" : "WhatsApp"}
                 external
                 accent="#25d366"
+                compact={isMobile}
               />
             </div>
           </div>
         </div>
 
-        <div style={statsGridStyle}>
-          <StatCard
-            icon={<FiTarget />}
-            label="Lead Status"
-            value={normalizeText(lead.status)}
-          />
-          <StatCard
-            icon={<FiCalendar />}
-            label="Reminder"
-            value={formatDateTime(lead.reminderDate || lead.nextFollowUpDate)}
-          />
-          <StatCard
-            icon={<FiUser />}
-            label="Assigned To"
-            value={formatEmailDisplay(lead.assignedTo?.email, "Unassigned")}
-          />
-          <StatCard
-            icon={<FiClock />}
-            label="Last Contact"
-            value={formatDateTime(lead.lastContactedAt)}
-          />
-        </div>
+        {!isMobile ? (
+          <div style={statsGridStyle}>
+            {quickStats.map((item) => (
+              <StatCard
+                key={item.label}
+                icon={item.icon}
+                label={item.label}
+                value={item.value}
+                compact={isMobile}
+              />
+            ))}
+          </div>
+        ) : null}
 
         <div style={contentGridStyle}>
           <div style={styles.column}>
             <SectionCard
-              title="Lead Profile"
-              subtitle="Core lead details and ownership information."
-            >
-              <div style={detailGridStyle}>
-                <InfoItem label="Email" value={lead.email || "Not set"} />
-                <InfoItem label="Phone" value={lead.phone || "Not set"} />
-                <InfoItem label="Created On" value={formatDate(lead.createdAt)} />
-                <InfoItem
-                  label="Created By"
-                  value={formatEmailDisplay(lead.createdBy?.email, "Not available")}
-                />
-                <InfoItem label="Purpose" value={normalizeText(lead.purpose, "followup")} />
-                <InfoItem label="Next Follow Up" value={formatDateTime(lead.nextFollowUpDate)} />
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Lead Notes"
-              subtitle="Latest notes saved on the lead record."
-            >
-              <div style={styles.noteBlock}>
-                <FiFileText />
-                <span>{lead.notes || "No notes added yet."}</span>
-              </div>
-            </SectionCard>
-
-            <SectionCard
               title="Add Activity"
-              subtitle="Log every interaction and set the next follow-up reminder."
+              subtitle={
+                isMobile
+                  ? "Quick update"
+                  : "Log every interaction and set the next follow-up reminder."
+              }
+              style={isMobile ? styles.sectionCardCompact : undefined}
+              compact={isMobile}
             >
               <div style={formGridStyle}>
-                <Field label="Activity Type">
+                <Field label={isMobile ? "Type" : "Activity Type"} compact={isMobile}>
                   <select
                     value={activityType}
                     onChange={(e) => setActivityType(e.target.value)}
-                    style={styles.input}
+                    style={formInputStyle}
                   >
                     <option value="call">Call</option>
                     <option value="whatsapp">WhatsApp</option>
@@ -379,20 +400,20 @@ export default function LeadView() {
                   </select>
                 </Field>
 
-                <Field label="Activity Date and Time">
+                <Field label={isMobile ? "Date & Time" : "Activity Date and Time"} compact={isMobile}>
                   <input
                     type="datetime-local"
                     value={activityDateTime}
                     onChange={(e) => setActivityDateTime(e.target.value)}
-                    style={styles.input}
+                    style={formInputStyle}
                   />
                 </Field>
 
-                <Field label="Outcome">
+                <Field label="Outcome" compact={isMobile}>
                   <select
                     value={outcome}
                     onChange={(e) => setOutcome(e.target.value)}
-                    style={styles.input}
+                    style={formInputStyle}
                   >
                     <option value="">Select outcome</option>
                     <option value="Connected">Connected</option>
@@ -404,29 +425,35 @@ export default function LeadView() {
                   </select>
                 </Field>
 
-                <Field label="Next Follow Up Date">
+                <Field label={isMobile ? "Follow Up" : "Next Follow Up Date"} compact={isMobile}>
                   <input
                     type="datetime-local"
                     value={nextFollowUpDate}
                     onChange={(e) => setNextFollowUpDate(e.target.value)}
-                    style={styles.input}
+                    style={formInputStyle}
                   />
                 </Field>
               </div>
 
-              <Field label="Notes">
+              <Field label="Notes" compact={isMobile}>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  style={{ ...styles.input, minHeight: 104, resize: "vertical" }}
+                  style={noteInputStyle}
                 />
               </Field>
 
-              <div style={styles.formFooter}>
+              <div
+                style={{
+                  ...styles.formFooter,
+                  justifyContent: isMobile ? "stretch" : "flex-end",
+                }}
+              >
                 <button
                   onClick={handleAddActivity}
                   style={{
                     ...styles.primaryButton,
+                    width: isMobile ? "100%" : "auto",
                     opacity: submitting ? 0.7 : 1,
                   }}
                   type="button"
@@ -436,34 +463,114 @@ export default function LeadView() {
                 </button>
               </div>
             </SectionCard>
+
+            {isMobile ? (
+              <div style={statsGridStyle}>
+                {quickStats.map((item) => (
+                  <StatCard
+                    key={item.label}
+                    icon={item.icon}
+                    label={item.label}
+                    value={item.value}
+                    compact
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            <SectionCard
+              title={isMobile ? "Lead Info" : "Lead Details"}
+              subtitle={
+                isMobile
+                  ? showMoreDetails
+                    ? "Useful contact and lead note details."
+                    : "Tap view to open extra details."
+                  : "Useful lead context without extra clutter."
+              }
+              action={
+                isMobile ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowMoreDetails((current) => !current)}
+                    style={styles.secondaryButton}
+                  >
+                    {showMoreDetails ? "Hide" : "View"}
+                    {showMoreDetails ? <FiChevronUp /> : <FiChevronDown />}
+                  </button>
+                ) : null
+              }
+              style={isMobile ? styles.sectionCardCompact : undefined}
+            >
+              {!isMobile || showMoreDetails ? (
+                <>
+                  <div style={detailGridStyle}>
+                    <InfoItem label="Phone" value={lead.phone || "Not set"} compact={isMobile} />
+                    <InfoItem label="Email" value={lead.email || "Not set"} compact={isMobile} />
+                    <InfoItem
+                      label="Source"
+                      value={lead.source || "Direct"}
+                      compact={isMobile}
+                    />
+                    <InfoItem
+                      label="Next Follow Up"
+                      value={formatDateTime(lead.nextFollowUpDate || lead.reminderDate)}
+                      compact={isMobile}
+                    />
+                  </div>
+
+                  <div style={styles.noteSection}>
+                    <div style={styles.noteHeading}>Lead Note</div>
+                    <div style={styles.noteBlock}>
+                      <FiFileText />
+                      <span>{lead.notes || "No notes added yet."}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={styles.collapsedHint}>
+                  Contact details and saved note stay available here when you need them.
+                </div>
+              )}
+            </SectionCard>
           </div>
 
           <div style={styles.column}>
             <SectionCard
-              title="Reminder and Ownership"
-              subtitle="Keep reminder dates and role ownership visible at a glance."
-            >
-              <div style={detailGridStyle}>
-                <InfoItem label="Reminder Date" value={formatDateTime(lead.reminderDate)} />
-                <InfoItem label="Reminder State" value={lead.reminderSent ? "Sent" : "Pending"} />
-                <InfoItem label="Read Status" value={lead.reminderRead ? "Read" : "Unread"} />
-                <InfoItem label="Assigned Role" value={lead.assignedTo?.role || "Not assigned"} />
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Activity Timeline"
-              subtitle="Most recent conversations and follow-up outcomes."
+              title="Recent Activity"
+              subtitle={
+                isMobile
+                  ? "Latest updates first."
+                  : "Most recent conversations and follow-up outcomes."
+              }
+              action={
+                activities.length > 2 && isMobile ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllTimeline((current) => !current)}
+                    style={styles.secondaryButton}
+                  >
+                    {showAllTimeline ? "Show less" : `Show all (${activities.length})`}
+                    {showAllTimeline ? <FiChevronUp /> : <FiChevronDown />}
+                  </button>
+                ) : null
+              }
+              style={isMobile ? styles.sectionCardCompact : undefined}
             >
               {activities.length === 0 ? (
                 <div style={styles.emptyTimeline}>No activities added yet.</div>
               ) : (
                 <div style={styles.timelineList}>
-                  {activities.map((activity) => {
+                  {visibleActivities.map((activity) => {
                     const followUpTone = getReminderTone(activity.nextFollowUpDate);
 
                     return (
-                      <div key={activity._id} style={styles.timelineItem}>
+                      <div
+                        key={activity._id}
+                        style={{
+                          ...styles.timelineItem,
+                          padding: isMobile ? 12 : 14,
+                        }}
+                      >
                         <div style={styles.timelineTop}>
                           <div>
                             <div style={styles.timelineType}>
@@ -487,7 +594,12 @@ export default function LeadView() {
                           )}
                         </div>
 
-                        <div style={styles.timelineNotes}>
+                        <div
+                          style={{
+                            ...styles.timelineNotes,
+                            ...(isMobile ? styles.timelineNotesClamp : null),
+                          }}
+                        >
                           {activity.notes || "No notes added"}
                         </div>
 
@@ -518,6 +630,12 @@ export default function LeadView() {
                   })}
                 </div>
               )}
+
+              {hasHiddenActivities ? (
+                <div style={styles.collapsedHint}>
+                  Showing latest {visibleActivities.length} activities.
+                </div>
+              ) : null}
             </SectionCard>
           </div>
         </div>
@@ -526,16 +644,22 @@ export default function LeadView() {
   );
 }
 
-function ActionButton({ href, icon, label, external = false, accent }) {
+function ActionButton({ href, icon, label, external = false, accent, compact = false }) {
+  const disabled = !href;
+
   return (
     <a
       href={href}
-      target={external ? "_blank" : undefined}
-      rel={external ? "noreferrer" : undefined}
+      target={!disabled && external ? "_blank" : undefined}
+      rel={!disabled && external ? "noreferrer" : undefined}
       style={{
         ...styles.actionButton,
+        ...(compact ? styles.actionButtonCompact : null),
         color: accent || "#ffffff",
+        ...(disabled ? styles.actionButtonDisabled : null),
       }}
+      aria-disabled={disabled}
+      onClick={disabled ? (event) => event.preventDefault() : undefined}
     >
       {icon}
       <span>{label}</span>
@@ -543,22 +667,36 @@ function ActionButton({ href, icon, label, external = false, accent }) {
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, children, compact = false }) {
   return (
     <div style={styles.field}>
-      <label style={styles.label}>{label}</label>
+      <label style={{ ...styles.label, ...(compact ? styles.labelCompact : null) }}>{label}</label>
       {children}
     </div>
   );
 }
 
-function SectionCard({ title, subtitle, children }) {
+function SectionCard({ title, subtitle, children, action = null, style, compact = false }) {
   return (
-    <div style={styles.sectionCard}>
+    <div style={{ ...styles.sectionCard, ...style }}>
       <div style={styles.sectionHeader}>
-        <div>
-          <h3 style={styles.sectionTitle}>{title}</h3>
-          <p style={styles.sectionSubtitle}>{subtitle}</p>
+        <div style={styles.sectionHeaderRow}>
+          <div>
+            <h3 style={{ ...styles.sectionTitle, ...(compact ? styles.sectionTitleCompact : null) }}>
+              {title}
+            </h3>
+            {subtitle ? (
+              <p
+                style={{
+                  ...styles.sectionSubtitle,
+                  ...(compact ? styles.sectionSubtitleCompact : null),
+                }}
+              >
+                {subtitle}
+              </p>
+            ) : null}
+          </div>
+          {action}
         </div>
       </div>
       {children}
@@ -566,23 +704,29 @@ function SectionCard({ title, subtitle, children }) {
   );
 }
 
-function StatCard({ icon, label, value }) {
+function StatCard({ icon, label, value, compact = false }) {
   return (
-    <div style={styles.statCard}>
-      <div style={styles.statIcon}>{icon}</div>
+    <div style={{ ...styles.statCard, ...(compact ? styles.statCardCompact : null) }}>
+      <div style={{ ...styles.statIcon, ...(compact ? styles.statIconCompact : null) }}>{icon}</div>
       <div style={styles.statLabel}>{label}</div>
-      <div style={styles.statValue} title={value}>
+      <div
+        style={{ ...styles.statValue, ...(compact ? styles.statValueCompact : null) }}
+        title={value}
+      >
         {value}
       </div>
     </div>
   );
 }
 
-function InfoItem({ label, value }) {
+function InfoItem({ label, value, compact = false }) {
   return (
-    <div style={styles.infoItem}>
+    <div style={{ ...styles.infoItem, ...(compact ? styles.infoItemCompact : null) }}>
       <div style={styles.infoLabel}>{label}</div>
-      <div style={styles.infoValue} title={value}>
+      <div
+        style={{ ...styles.infoValue, ...(compact ? styles.infoValueCompact : null) }}
+        title={value}
+      >
         {normalizeText(value, "Not set")}
       </div>
     </div>
@@ -594,7 +738,7 @@ const styles = {
     minHeight: "100vh",
     background:
       "radial-gradient(circle at top left, rgba(37,99,235,0.08), transparent 22%), var(--bg)",
-    padding: "4px 0 18px",
+    padding: "0 0 16px",
   },
   shell: {
     maxWidth: 1180,
@@ -624,7 +768,7 @@ const styles = {
     background: "transparent",
     color: "#2563eb",
     cursor: "pointer",
-    marginBottom: 12,
+    marginBottom: 10,
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
@@ -657,6 +801,9 @@ const styles = {
     fontSize: 11,
     opacity: 0.82,
   },
+  heroEyebrowCompact: {
+    display: "none",
+  },
   heroTitle: {
     margin: "8px 0 0",
     fontSize: 28,
@@ -673,16 +820,34 @@ const styles = {
     fontSize: 12,
     fontWeight: 700,
   },
+  tagCompact: {
+    padding: "7px 10px",
+    fontSize: 11,
+  },
   heroSub: {
     margin: 0,
     color: "rgba(255,255,255,0.86)",
     fontSize: 13,
     lineHeight: 1.5,
   },
+  heroSubCompact: {
+    margin: 0,
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 11,
+    lineHeight: 1.35,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
   actionRow: {
     display: "grid",
     gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
     gap: 10,
+  },
+  actionRowMobile: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: 8,
   },
   actionButton: {
     background: "rgba(255,255,255,0.14)",
@@ -700,6 +865,19 @@ const styles = {
     minWidth: 0,
     textAlign: "center",
   },
+  actionButtonCompact: {
+    minWidth: 0,
+    padding: "9px 6px",
+    fontSize: 11,
+    gap: 6,
+    borderRadius: 14,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+  },
+  actionButtonDisabled: {
+    opacity: 0.48,
+    pointerEvents: "none",
+  },
   statsGrid: {
     display: "grid",
     gap: 12,
@@ -713,6 +891,10 @@ const styles = {
     boxShadow: "0 12px 22px rgba(15,23,42,0.05)",
     minWidth: 0,
   },
+  statCardCompact: {
+    padding: 12,
+    borderRadius: 16,
+  },
   statIcon: {
     width: 36,
     height: 36,
@@ -724,6 +906,13 @@ const styles = {
     justifyContent: "center",
     marginBottom: 12,
     fontSize: 18,
+  },
+  statIconCompact: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    marginBottom: 10,
+    fontSize: 16,
   },
   statLabel: {
     fontSize: 12,
@@ -738,6 +927,10 @@ const styles = {
     minWidth: 0,
     overflowWrap: "anywhere",
     wordBreak: "break-word",
+  },
+  statValueCompact: {
+    fontSize: 13,
+    lineHeight: 1.4,
   },
   contentGrid: {
     display: "grid",
@@ -758,16 +951,34 @@ const styles = {
   sectionHeader: {
     marginBottom: 14,
   },
+  sectionHeaderRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   sectionTitle: {
     margin: 0,
     color: "var(--heading)",
     fontSize: 18,
+  },
+  sectionTitleCompact: {
+    fontSize: 16,
   },
   sectionSubtitle: {
     margin: "6px 0 0",
     color: "var(--text)",
     fontSize: 13,
     lineHeight: 1.5,
+  },
+  sectionSubtitleCompact: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 1.35,
+  },
+  sectionCardCompact: {
+    borderRadius: 18,
+    padding: 12,
   },
   detailGrid: {
     display: "grid",
@@ -780,6 +991,10 @@ const styles = {
     padding: 12,
     border: "1px solid rgba(226,232,240,0.9)",
     minWidth: 0,
+  },
+  infoItemCompact: {
+    padding: 11,
+    borderRadius: 14,
   },
   infoLabel: {
     fontSize: 11,
@@ -797,6 +1012,19 @@ const styles = {
     overflowWrap: "anywhere",
     wordBreak: "break-word",
   },
+  infoValueCompact: {
+    fontSize: 12,
+  },
+  noteSection: {
+    marginTop: 12,
+  },
+  noteHeading: {
+    marginBottom: 8,
+    fontSize: 12,
+    color: "var(--heading)",
+    fontWeight: 800,
+    letterSpacing: "0.02em",
+  },
   noteBlock: {
     display: "flex",
     alignItems: "flex-start",
@@ -810,18 +1038,22 @@ const styles = {
   },
   formGrid: {
     display: "grid",
-    gap: 12,
+    gap: 10,
   },
   field: {
     display: "flex",
     flexDirection: "column",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   label: {
     fontSize: 12,
     color: "var(--heading)",
     fontWeight: 700,
     marginBottom: 6,
+  },
+  labelCompact: {
+    fontSize: 11,
+    marginBottom: 4,
   },
   input: {
     width: "100%",
@@ -831,6 +1063,12 @@ const styles = {
     background: "var(--card)",
     color: "var(--text)",
     fontSize: 14,
+  },
+  inputCompact: {
+    padding: "10px 12px",
+    borderRadius: 10,
+    fontSize: 13,
+    minHeight: 42,
   },
   formFooter: {
     display: "flex",
@@ -845,6 +1083,26 @@ const styles = {
     fontWeight: 800,
     cursor: "pointer",
     boxShadow: "0 12px 22px rgba(37,99,235,0.2)",
+  },
+  secondaryButton: {
+    border: "1px solid rgba(37,99,235,0.18)",
+    borderRadius: 999,
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    padding: "8px 12px",
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    whiteSpace: "nowrap",
+  },
+  collapsedHint: {
+    marginTop: 12,
+    fontSize: 12,
+    lineHeight: 1.5,
+    color: "var(--muted)",
   },
   emptyTimeline: {
     padding: 18,
@@ -894,6 +1152,12 @@ const styles = {
     color: "var(--text)",
     fontSize: 13,
     lineHeight: 1.6,
+  },
+  timelineNotesClamp: {
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 3,
+    overflow: "hidden",
   },
   timelineMeta: {
     marginTop: 12,

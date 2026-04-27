@@ -16,7 +16,6 @@ import {
   clearPushPromptDismissal,
   dismissPushPrompt,
   getPushEnvironment,
-  shouldSuppressPushPrompt,
 } from "../utils/pushSupport";
 import {
   checkNativePushPermissions,
@@ -25,6 +24,8 @@ import {
   registerNativePush,
   requestNativePushPermissions,
 } from "../utils/nativePush";
+
+const LIVE_REMINDER_TOAST_WINDOW_MS = 2 * 60 * 1000;
 
 function decodeJwtPayload(token) {
   if (!token) return null;
@@ -259,6 +260,28 @@ function getLiveNotificationMessage(item = {}) {
   return item?.body || item?.notes || `${item?.name || nestedData?.leadName || "Lead"} reminder needs attention`;
 }
 
+function shouldShowLiveNotificationToast(item = {}) {
+  const nestedData =
+    item?.data && typeof item.data === "object" && !Array.isArray(item.data) ? item.data : {};
+  const rawType = item?.type || item?.notificationType || nestedData?.type || "reminder";
+
+  if (rawType === "lead-assigned" || rawType === "lead_assigned") {
+    return true;
+  }
+
+  const reminderValue = item?.reminderDate || nestedData?.reminderDate;
+  if (!reminderValue) {
+    return false;
+  }
+
+  const reminderDate = new Date(reminderValue);
+  if (Number.isNaN(reminderDate.getTime())) {
+    return false;
+  }
+
+  return Math.abs(Date.now() - reminderDate.getTime()) <= LIVE_REMINDER_TOAST_WINDOW_MS;
+}
+
 function playNotificationTone() {
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -311,6 +334,10 @@ export default function Topbar({ openSidebar }) {
   const pushDeviceCopy = getPushDeviceCopy(pushState);
 
   const showLiveNotificationToast = useCallback((item) => {
+    if (!shouldShowLiveNotificationToast(item)) {
+      return false;
+    }
+
     const trackingKey = getTrackedNotificationKey(item);
     if (trackingKey && notifiedAlertIdsRef.current.has(trackingKey)) {
       return false;
@@ -658,41 +685,6 @@ export default function Topbar({ openSidebar }) {
       window.removeEventListener("appinstalled", handleInstalled);
     };
   }, [fetchPushStatus]);
-
-  useEffect(() => {
-    if (!isMobile || !token || showNotif || pushState.loading || shouldSuppressPushPrompt()) {
-      return undefined;
-    }
-
-    const shouldShowPrompt =
-      pushState.permission !== "denied" &&
-      (pushState.needsInstall ||
-        (pushState.supported && !pushState.subscribed && !pushState.anyDeviceSubscribed) ||
-        (pushState.isNativeApp && pushState.supported && !pushState.subscribed));
-
-    if (!shouldShowPrompt) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setShowPushPrompt(true);
-    }, 900);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    isMobile,
-    pushState.anyDeviceSubscribed,
-    pushState.isNativeApp,
-    pushState.loading,
-    pushState.needsInstall,
-    pushState.permission,
-    pushState.subscribed,
-    pushState.supported,
-    showNotif,
-    token,
-  ]);
 
   const resolveNotificationTarget = useCallback((data = {}) => {
     const rawUrl = typeof data?.url === "string" ? data.url.trim() : "";

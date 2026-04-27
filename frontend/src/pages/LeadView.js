@@ -24,8 +24,9 @@ function formatDateTime(value) {
     day: "2-digit",
     month: "short",
     year: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
 }
 
@@ -229,18 +230,20 @@ export default function LeadView() {
       icon: <FiCalendar />,
       label: "Next Follow Up",
       value: formatDateTime(lead.reminderDate || lead.nextFollowUpDate),
+      wideOnMobile: true,
     },
     {
       icon: <FiClock />,
       label: "Last Contact",
       value: formatDateTime(lead.lastContactedAt),
+      wideOnMobile: true,
     },
   ];
   const visibleActivities = isMobile && !showAllTimeline ? activities.slice(0, 2) : activities;
   const hasHiddenActivities = visibleActivities.length < activities.length;
   const shellStyle = {
     ...styles.shell,
-    padding: isMobile ? 8 : 18,
+    padding: isMobile ? 12 : 18,
   };
   const heroContentStyle = {
     ...styles.heroContent,
@@ -271,9 +274,7 @@ export default function LeadView() {
   };
   const formGridStyle = {
     ...styles.formGrid,
-    gridTemplateColumns: isMobile
-      ? "repeat(auto-fit, minmax(148px, 1fr))"
-      : "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
   };
   const detailGridStyle = {
     ...styles.detailGrid,
@@ -282,7 +283,7 @@ export default function LeadView() {
   const noteInputStyle = {
     ...styles.input,
     ...(isMobile ? styles.inputCompact : null),
-    minHeight: isMobile ? 62 : 104,
+    minHeight: isMobile ? 86 : 104,
     resize: "vertical",
   };
   const formInputStyle = isMobile ? { ...styles.input, ...styles.inputCompact } : styles.input;
@@ -467,15 +468,16 @@ export default function LeadView() {
             {isMobile ? (
               <div style={statsGridStyle}>
                 {quickStats.map((item) => (
-                  <StatCard
-                    key={item.label}
-                    icon={item.icon}
-                    label={item.label}
-                    value={item.value}
-                    compact
-                  />
-                ))}
-              </div>
+                   <StatCard
+                     key={item.label}
+                     icon={item.icon}
+                     label={item.label}
+                     value={item.value}
+                     compact
+                     wide={item.wideOnMobile}
+                   />
+                 ))}
+               </div>
             ) : null}
 
             <SectionCard
@@ -704,9 +706,15 @@ function SectionCard({ title, subtitle, children, action = null, style, compact 
   );
 }
 
-function StatCard({ icon, label, value, compact = false }) {
+function StatCard({ icon, label, value, compact = false, wide = false }) {
   return (
-    <div style={{ ...styles.statCard, ...(compact ? styles.statCardCompact : null) }}>
+    <div
+      style={{
+        ...styles.statCard,
+        ...(compact ? styles.statCardCompact : null),
+        ...(wide ? styles.statCardWide : null),
+      }}
+    >
       <div style={{ ...styles.statIcon, ...(compact ? styles.statIconCompact : null) }}>{icon}</div>
       <div style={styles.statLabel}>{label}</div>
       <div
@@ -739,10 +747,13 @@ const styles = {
     background:
       "radial-gradient(circle at top left, rgba(37,99,235,0.08), transparent 22%), var(--bg)",
     padding: "0 0 16px",
+    boxSizing: "border-box",
   },
   shell: {
     maxWidth: 1180,
     margin: "0 auto",
+    width: "100%",
+    boxSizing: "border-box",
   },
   loadingShell: {
     minHeight: "100vh",
@@ -782,6 +793,7 @@ const styles = {
     color: "#fff",
     boxShadow: "0 18px 36px rgba(29,78,216,0.24)",
     marginBottom: 14,
+    boxSizing: "border-box",
   },
   heroContent: {
     display: "grid",
@@ -834,10 +846,8 @@ const styles = {
     margin: 0,
     color: "rgba(255,255,255,0.86)",
     fontSize: 11,
-    lineHeight: 1.35,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
+    lineHeight: 1.45,
+    overflowWrap: "anywhere",
   },
   actionRow: {
     display: "grid",
@@ -846,7 +856,7 @@ const styles = {
   },
   actionRowMobile: {
     display: "grid",
-    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 8,
   },
   actionButton: {
@@ -863,16 +873,17 @@ const styles = {
     fontWeight: 700,
     fontSize: 13,
     minWidth: 0,
+    minHeight: 48,
+    boxSizing: "border-box",
     textAlign: "center",
   },
   actionButtonCompact: {
     minWidth: 0,
-    padding: "9px 6px",
+    minHeight: 44,
+    padding: "10px 8px",
     fontSize: 11,
     gap: 6,
     borderRadius: 14,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
   },
   actionButtonDisabled: {
     opacity: 0.48,
@@ -894,6 +905,9 @@ const styles = {
   statCardCompact: {
     padding: 12,
     borderRadius: 16,
+  },
+  statCardWide: {
+    gridColumn: "1 / -1",
   },
   statIcon: {
     width: 36,
@@ -929,7 +943,7 @@ const styles = {
     wordBreak: "break-word",
   },
   statValueCompact: {
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 1.4,
   },
   contentGrid: {
@@ -947,6 +961,7 @@ const styles = {
     borderRadius: 20,
     padding: 16,
     boxShadow: "0 12px 24px rgba(15,23,42,0.05)",
+    boxSizing: "border-box",
   },
   sectionHeader: {
     marginBottom: 14,
@@ -956,6 +971,7 @@ const styles = {
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 12,
+    flexWrap: "wrap",
   },
   sectionTitle: {
     margin: 0,
@@ -978,7 +994,7 @@ const styles = {
   },
   sectionCardCompact: {
     borderRadius: 18,
-    padding: 12,
+    padding: 14,
   },
   detailGrid: {
     display: "grid",
@@ -1044,6 +1060,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     marginBottom: 0,
+    minWidth: 0,
   },
   label: {
     fontSize: 12,
@@ -1061,8 +1078,12 @@ const styles = {
     borderRadius: 12,
     border: "1px solid var(--border)",
     background: "var(--card)",
-    color: "var(--text)",
+    color: "var(--heading)",
     fontSize: 14,
+    lineHeight: 1.4,
+    minWidth: 0,
+    boxSizing: "border-box",
+    fontFamily: "inherit",
   },
   inputCompact: {
     padding: "10px 12px",
@@ -1073,6 +1094,7 @@ const styles = {
   formFooter: {
     display: "flex",
     justifyContent: "flex-end",
+    marginTop: 14,
   },
   primaryButton: {
     border: "none",
@@ -1080,6 +1102,9 @@ const styles = {
     background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
     color: "#fff",
     padding: "12px 18px",
+    minHeight: 48,
+    boxSizing: "border-box",
+    fontSize: 15,
     fontWeight: 800,
     cursor: "pointer",
     boxShadow: "0 12px 22px rgba(37,99,235,0.2)",
@@ -1184,5 +1209,6 @@ const styles = {
     fontSize: 12,
     fontWeight: 700,
     lineHeight: 1.5,
+    overflowWrap: "anywhere",
   },
 };

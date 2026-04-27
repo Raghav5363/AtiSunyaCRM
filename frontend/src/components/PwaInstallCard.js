@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  FiCheckCircle,
-  FiDownload,
-  FiExternalLink,
-  FiShare2,
-  FiSmartphone,
-} from "react-icons/fi";
+import { FiDownload, FiExternalLink, FiShare2, FiSmartphone } from "react-icons/fi";
 
 function getIsStandalone() {
   if (typeof window === "undefined") return false;
@@ -74,7 +68,6 @@ export default function PwaInstallCard({ compact = false }) {
   }, []);
 
   const platform = useMemo(getPlatform, []);
-
   const canPromptInstall = Boolean(deferredPrompt);
   const shouldShow = !isInstalled && (canPromptInstall || platform.isIOS || platform.isMobile);
 
@@ -89,23 +82,7 @@ export default function PwaInstallCard({ compact = false }) {
     }
   };
 
-  if (isInstalled) {
-    return (
-      <div style={{ ...styles.card, ...(compact ? styles.compactCard : null), ...styles.successCard }}>
-        <div style={styles.row}>
-          <FiCheckCircle style={styles.successIcon} />
-          <div>
-            <div style={styles.title}>App Installed</div>
-            <div style={styles.subtext}>
-              Open AtiSunya CRM from your home screen for the full mobile app experience.
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!shouldShow) {
+  if (isInstalled || !shouldShow) {
     return null;
   }
 
@@ -119,24 +96,26 @@ export default function PwaInstallCard({ compact = false }) {
           <FiSmartphone />
         </div>
         <div style={styles.copy}>
-          <div style={styles.title}>Install Directly From Link</div>
+          <div style={styles.title}>Install On This Phone</div>
           <div style={styles.subtext}>
-            Save this CRM on your phone like a real app without Play Store or App Store.
+            Save AtiSunya CRM to the home screen for a cleaner, app-like mobile workspace.
           </div>
         </div>
       </div>
 
-      {canPromptInstall && (
+      {canPromptInstall ? (
         <div style={styles.actionRow}>
           <button type="button" onClick={handleInstall} style={styles.primaryButton}>
             <FiDownload />
-            <span>Install App</span>
+            <span>Install app</span>
           </button>
-          <div style={styles.caption}>Best on Android Chrome and other installable browsers.</div>
+          <div style={styles.caption}>
+            Best on Android Chrome and other installable mobile browsers.
+          </div>
         </div>
-      )}
+      ) : null}
 
-      {isIOSSafariInstall && (
+      {isIOSSafariInstall ? (
         <div style={styles.instructions}>
           <div style={styles.instructionTitle}>iPhone install steps</div>
           <div style={styles.stepRow}>
@@ -153,9 +132,9 @@ export default function PwaInstallCard({ compact = false }) {
             <span>Turn on <strong>Open as Web App</strong> if shown, then tap <strong>Add</strong>.</span>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {isIOSOtherBrowser && (
+      {isIOSOtherBrowser ? (
         <div style={styles.instructions}>
           <div style={styles.instructionTitle}>iPhone note</div>
           <div style={styles.stepRow}>
@@ -163,7 +142,7 @@ export default function PwaInstallCard({ compact = false }) {
             <span>Open this link in <strong>Safari</strong> to install it on the home screen.</span>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -171,6 +150,7 @@ export default function PwaInstallCard({ compact = false }) {
 const styles = {
   card: {
     width: "100%",
+    boxSizing: "border-box",
     background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98))",
     border: "1px solid rgba(148,163,184,0.22)",
     borderRadius: 20,
@@ -181,9 +161,6 @@ const styles = {
   compactCard: {
     padding: 16,
     borderRadius: 18,
-  },
-  successCard: {
-    background: "linear-gradient(180deg, rgba(236,253,245,0.98), rgba(255,255,255,0.98))",
   },
   row: {
     display: "flex",
@@ -209,6 +186,7 @@ const styles = {
   title: {
     fontSize: 16,
     fontWeight: 800,
+    lineHeight: 1.25,
     color: "#0f172a",
   },
   subtext: {
@@ -225,6 +203,7 @@ const styles = {
   },
   primaryButton: {
     width: "100%",
+    boxSizing: "border-box",
     border: "none",
     borderRadius: 14,
     background: "linear-gradient(135deg, #0f172a, #1d4ed8)",
@@ -241,8 +220,8 @@ const styles = {
   },
   caption: {
     fontSize: 12,
-    color: "#64748b",
     lineHeight: 1.45,
+    color: "#64748b",
   },
   instructions: {
     marginTop: 16,
@@ -264,8 +243,8 @@ const styles = {
     alignItems: "center",
     gap: 10,
     fontSize: 13,
-    color: "#334155",
     lineHeight: 1.45,
+    color: "#334155",
   },
   stepBadge: {
     width: 22,
@@ -283,11 +262,5 @@ const styles = {
   stepIcon: {
     color: "#0f766e",
     flexShrink: 0,
-  },
-  successIcon: {
-    color: "#047857",
-    fontSize: 24,
-    flexShrink: 0,
-    marginTop: 2,
   },
 };
